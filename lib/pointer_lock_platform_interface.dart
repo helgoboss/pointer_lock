@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'pointer_lock_method_channel.dart';
@@ -23,7 +25,23 @@ abstract class PointerLockPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<String?> getPlatformVersion() {
-    throw UnimplementedError('platformVersion() has not been implemented.');
+  Future<void> lockPointer() {
+    throw UnimplementedError('lockPointer() has not been implemented.');
+  }
+
+  Future<void> unlockPointer() {
+    throw UnimplementedError('unlockPointer() has not been implemented.');
+  }
+
+  Future<Offset> lastPointerDelta() {
+    throw UnimplementedError('lastPointerDelta() has not been implemented.');
+  }
+
+  Future<void> hidePointer() {
+    throw UnimplementedError('hidePointer() has not been implemented.');
+  }
+
+  Future<void> showPointer() {
+    throw UnimplementedError('showPointer() has not been implemented.');
   }
 }

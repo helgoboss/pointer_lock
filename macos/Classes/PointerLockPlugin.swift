@@ -10,8 +10,22 @@ public class PointerLockPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
-    case "getPlatformVersion":
-      result("macOS " + ProcessInfo.processInfo.operatingSystemVersionString)
+    case "lockPointer":
+      CGAssociateMouseAndMouseCursorPosition(0)
+      result(nil)
+    case "unlockPointer":
+      CGAssociateMouseAndMouseCursorPosition(1)
+      result(nil)
+    case "lastPointerDelta":
+      let (x, y) = CGGetLastMouseDelta()
+      let list: [Double] = [Double(x), Double(y)];
+      result(list)
+    case "hidePointer":
+      NSCursor.hide()
+      result(nil)
+    case "showPointer":
+      NSCursor.unhide()
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }

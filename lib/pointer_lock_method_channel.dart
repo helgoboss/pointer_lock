@@ -10,8 +10,31 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   final methodChannel = const MethodChannel('pointer_lock');
 
   @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
-    return version;
+  Future<void> lockPointer() {
+    return methodChannel.invokeMethod<void>('lockPointer');
+  }
+
+  @override
+  Future<void> unlockPointer() {
+    return methodChannel.invokeMethod<void>('unlockPointer');
+  }
+
+  @override
+  Future<Offset> lastPointerDelta() async {
+    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    if (list == null || list.length < 2) {
+      return Offset.zero;
+    }
+    return Offset(list[0], list[1]);
+  }
+
+  @override
+  Future<void> showPointer() {
+    return methodChannel.invokeMethod<void>('showPointer');
+  }
+
+  @override
+  Future<void> hidePointer() {
+    return methodChannel.invokeMethod<void>('hidePointer');
   }
 }
