@@ -52,7 +52,7 @@ class _MyAppState extends State<MyApp> {
                 ),
                 // Mode
                 Tooltip(
-                  message: "Usage should make a difference on Windows only",
+                  message: "Usage mode should make a difference on Windows only",
                   child: SegmentedButton<_Usage>(
                     selected: {_usage},
                     onSelectionChanged: (usages) {

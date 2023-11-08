@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
 import 'pointer_lock_platform_interface.dart';
+import 'dart:io' show Platform;
 
 /// An implementation of [PointerLockPlatform] that uses channels.
 class ChannelPointerLock extends PointerLockPlatform {
@@ -34,7 +37,10 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Future<void> subscribeToRawInputData() {
+  Future<void> subscribeToRawInputData() async {
+    if (!Platform.isWindows) {
+      return;
+    }
     return methodChannel.invokeMethod<void>('subscribeToRawInputData');
   }
 
@@ -49,11 +55,57 @@ class ChannelPointerLock extends PointerLockPlatform {
 
   @override
   Stream<Offset> startPointerLockSession() {
-    return sessionEventChannel.receiveBroadcastStream().map((event) {
-      if (event == null || event is! Float64List || event.length < 2) {
-        return Offset.zero;
-      }
-      return Offset(event[0], event[1]);
-    });
+    if (Platform.isWindows) {
+      return sessionEventChannel.receiveBroadcastStream().map((event) {
+        if (event == null || event is! Float64List || event.length < 2) {
+          return Offset.zero;
+        }
+        return Offset(event[0], event[1]);
+      });
+    } else {
+      // On platforms that don't have / don't need the SetCapture/SetCursorPos/ReleaseCapture approach, we can just
+      // "make up" a stream from the existing methods.
+      return _synthesizePointerLockSession();
+    }
   }
+
+  Stream<Offset> _synthesizePointerLockSession() async* {
+    await lockPointer();
+    await for (final packet in _getPointerDataPacketStream()) {
+      var isMove = false;
+      for (final data in packet.data) {
+        switch (data.change) {
+          case PointerChange.move:
+            // We must not stop the search for other events here!
+            // Otherwise we risk missing the pointer-up event.
+            isMove = true;
+          case PointerChange.up:
+            // Releasing a button is our sign for ending the session
+            await unlockPointer();
+            return;
+          default:
+        }
+      }
+      if (isMove) {
+        yield await lastPointerDelta();
+      }
+    }
+  }
+}
+
+/// "Steals" pointer events from the usual Flutter processing, emitting them as a stream.
+Stream<PointerDataPacket> _getPointerDataPacketStream() {
+  final previousCallback = PlatformDispatcher.instance.onPointerDataPacket;
+  void restorePreviousCallback() {
+    PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
+  }
+  final controller = StreamController<PointerDataPacket>(
+      onCancel: () => restorePreviousCallback(),
+  );
+  controller.onListen = () {
+    PlatformDispatcher.instance.onPointerDataPacket = (packet) {
+      controller.add(packet);
+    };
+  };
+  return controller.stream;
 }
