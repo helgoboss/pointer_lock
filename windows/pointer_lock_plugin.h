@@ -45,6 +45,7 @@ private:
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
   POINT lockedCursorPos_;
+  std::optional<std::tuple<int, int>> lastCursorPos_;
   int procId_;
 };
 

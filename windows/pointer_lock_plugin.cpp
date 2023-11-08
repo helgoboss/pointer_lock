@@ -68,11 +68,9 @@ void PointerLockPlugin::HandleMethodCall(
     ClipCursor(NULL);
     result->Success();
   } else if (method_call.method_name().compare("hidePointer") == 0) {
-    OutputDebugStringW(L"hidePointer");
     ShowCursor(0);
     result->Success();
   } else if (method_call.method_name().compare("showPointer") == 0) {
-    OutputDebugStringW(L"showPointer");
     ShowCursor(1);
     result->Success();
   } else if (method_call.method_name().compare("subscribeToRawInputData") == 0) {
@@ -179,8 +177,14 @@ PointerLockSession::PointerLockSession(
         // Calculate mouse move delta
         int x = GET_X_LPARAM(lparam);
         int y = GET_Y_LPARAM(lparam);
-        int xDelta = x - lockedCursorPos_.x;
-        int yDelta = y - lockedCursorPos_.y;
+        int xDelta = 0;
+        int yDelta = 0;
+        if (lastCursorPos_.has_value()) {
+          auto p = lastCursorPos_.value();
+          xDelta = x - std::get<0>(p);
+          yDelta = y - std::get<1>(p);
+        }
+        lastCursorPos_ = std::make_tuple(x, y);
         // Send mouse move delta to Flutter
         std::vector<double> vec{
           static_cast<double>(xDelta),
@@ -209,7 +213,6 @@ PointerLockSession::PointerLockSession(
 }
 
 PointerLockSession::~PointerLockSession() {
-  OutputDebugStringW(L"Ending pointer lock session");
   registrar_->UnregisterTopLevelWindowProcDelegate(procId_);
   ReleaseCapture();
 }
