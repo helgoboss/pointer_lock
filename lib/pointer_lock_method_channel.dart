@@ -9,6 +9,10 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   @visibleForTesting
   final methodChannel = const MethodChannel('pointer_lock');
 
+  /// An event channel used to interact with the native platform.
+  @visibleForTesting
+  final sessionEventChannel = const EventChannel('pointer_lock_session');
+
   @override
   Future<void> lockPointer() {
     return methodChannel.invokeMethod<void>('lockPointer');
@@ -36,5 +40,13 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   @override
   Future<void> hidePointer() {
     return methodChannel.invokeMethod<void>('hidePointer');
+  }
+
+  @override
+  Stream<Offset> startPointerLockSession() {
+    return sessionEventChannel.receiveBroadcastStream().map((event) {
+      debugPrint(event);
+      return Offset.zero;
+    });
   }
 }

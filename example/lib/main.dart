@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
@@ -17,10 +18,18 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Offset _lastPointerDelta = Offset.zero;
+  Stream<Offset>? _pointerLockSessionStream;
   final _pointerLockPlugin = PointerLock();
 
   @override
+  void initState() {
+    _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final stream = _pointerLockSessionStream;
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
@@ -28,9 +37,15 @@ class _MyAppState extends State<MyApp> {
         ),
         body: Listener(
           behavior: HitTestBehavior.opaque,
-          onPointerDown: (_) async {
-            await _pointerLockPlugin.hidePointer();
-            await _pointerLockPlugin.lockPointer();
+          onPointerDown: (details) async {
+            if (details.buttons == kSecondaryMouseButton) {
+              await _pointerLockPlugin.hidePointer();
+              await _pointerLockPlugin.lockPointer();
+            } else {
+              // setState(() {
+              //   _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
+              // });
+            }
           },
           onPointerMove: (_) async {
             final delta = await _pointerLockPlugin.lastPointerDelta();
@@ -46,7 +61,18 @@ class _MyAppState extends State<MyApp> {
             await _pointerLockPlugin.showPointer();
           },
           child: Center(
-            child: Text('Last pointer delta: $_lastPointerDelta'),
+            child: Column(
+              children: [
+                Text('Last pointer delta: $_lastPointerDelta'),
+                if (stream != null)
+                  StreamBuilder(
+                    stream: stream,
+                    builder: (context, snapshot) {
+                      return Text('Error: ${snapshot.error}, Last offset: ${snapshot.data}');
+                    },
+                  )
+              ],
+            ),
           ),
         ),
       ),

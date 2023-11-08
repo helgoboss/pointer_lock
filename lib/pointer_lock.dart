@@ -23,4 +23,8 @@ class PointerLock {
   Future<void> showPointer() {
     return PointerLockPlatform.instance.showPointer();
   }
+
+  Stream<Offset> startPointerLockSession() {
+    return PointerLockPlatform.instance.startPointerLockSession();
+  }
 }

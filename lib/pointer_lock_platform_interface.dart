@@ -44,4 +44,8 @@ abstract class PointerLockPlatform extends PlatformInterface {
   Future<void> showPointer() {
     throw UnimplementedError('showPointer() has not been implemented.');
   }
+
+  Stream<Offset> startPointerLockSession() {
+    throw UnimplementedError('startPointerLockSession() has not been implemented.');
+  }
 }
