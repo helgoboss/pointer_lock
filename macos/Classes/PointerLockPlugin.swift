@@ -25,16 +25,19 @@ public class PointerLockPlugin: NSObject, FlutterPlugin {
     case "unlockPointer":
       CGAssociateMouseAndMouseCursorPosition(1)
       result(nil)
-    case "lastPointerDelta":
-      let (x, y) = CGGetLastMouseDelta()
-      let list: [Double] = [Double(x), Double(y)];
-      result(list)
     case "hidePointer":
       NSCursor.hide()
       result(nil)
     case "showPointer":
       NSCursor.unhide()
       result(nil)
+    case "subscribeToRawInputData":
+      // Not necessary on macOS. We can use CGGetLastMouseDelta() without any special preparations.
+      result(nil)
+    case "lastPointerDelta":
+      let (x, y) = CGGetLastMouseDelta()
+      let list: [Double] = [Double(x), Double(y)];
+      result(list)
     default:
       result(FlutterMethodNotImplemented)
     }

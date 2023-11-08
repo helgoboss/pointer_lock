@@ -33,16 +33,20 @@ abstract class PointerLockPlatform extends PlatformInterface {
     throw UnimplementedError('unlockPointer() has not been implemented.');
   }
 
-  Future<Offset> lastPointerDelta() {
-    throw UnimplementedError('lastPointerDelta() has not been implemented.');
-  }
-
   Future<void> hidePointer() {
     throw UnimplementedError('hidePointer() has not been implemented.');
   }
 
   Future<void> showPointer() {
     throw UnimplementedError('showPointer() has not been implemented.');
+  }
+
+  Future<void> subscribeToRawInputData() {
+    throw UnimplementedError('subscribeToRawInputData() has not been implemented.');
+  }
+
+  Future<Offset> lastPointerDelta() {
+    throw UnimplementedError('lastPointerDelta() has not been implemented.');
   }
 
   Stream<Offset> startPointerLockSession() {

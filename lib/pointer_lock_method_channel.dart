@@ -24,15 +24,6 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Future<Offset> lastPointerDelta() async {
-    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
-    if (list == null || list.length < 2) {
-      return Offset.zero;
-    }
-    return Offset(list[0], list[1]);
-  }
-
-  @override
   Future<void> showPointer() {
     return methodChannel.invokeMethod<void>('showPointer');
   }
@@ -40,6 +31,20 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   @override
   Future<void> hidePointer() {
     return methodChannel.invokeMethod<void>('hidePointer');
+  }
+
+  @override
+  Future<void> subscribeToRawInputData() {
+    return methodChannel.invokeMethod<void>('subscribeToRawInputData');
+  }
+
+  @override
+  Future<Offset> lastPointerDelta() async {
+    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    if (list == null || list.length < 2) {
+      return Offset.zero;
+    }
+    return Offset(list[0], list[1]);
   }
 
   @override

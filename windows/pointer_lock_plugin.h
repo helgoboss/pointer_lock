@@ -12,7 +12,7 @@ class PointerLockPlugin : public flutter::Plugin {
  public:
   static void RegisterWithRegistrar(flutter::PluginRegistrarWindows *registrar);
 
-  PointerLockPlugin();
+  PointerLockPlugin(flutter::PluginRegistrarWindows* registrar);
 
   virtual ~PointerLockPlugin();
 
@@ -24,6 +24,16 @@ class PointerLockPlugin : public flutter::Plugin {
   void HandleMethodCall(
       const flutter::MethodCall<flutter::EncodableValue> &method_call,
       std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+
+ private:
+   flutter::PluginRegistrarWindows* registrar_;
+   std::optional<int> rawInputDataProcId_;
+   LONG lastXDelta_ = 0;
+   LONG lastYDelta_ = 0;
+
+   bool SubscribeToRawInputData();
+   void UnsubscribeFromRawInputData();
+   bool SubscribedToRawInputData();
 };
 
 }  // namespace pointer_lock

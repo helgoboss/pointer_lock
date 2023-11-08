@@ -23,7 +23,9 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void initState() {
-    _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
+    // This preparational call is necessary to make `lastPointerDelta` work on Windows. It comes with a caveat, so make
+    // sure to read its documentation.
+    _pointerLockPlugin.subscribeToRawInputData();
     super.initState();
   }
 
@@ -38,13 +40,13 @@ class _MyAppState extends State<MyApp> {
         body: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (details) async {
-            if (details.buttons == kSecondaryMouseButton) {
-              await _pointerLockPlugin.hidePointer();
+            await _pointerLockPlugin.hidePointer();
+            if (details.buttons == kPrimaryMouseButton) {
               await _pointerLockPlugin.lockPointer();
             } else {
-              // setState(() {
-              //   _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
-              // });
+              setState(() {
+                _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
+              });
             }
           },
           onPointerMove: (_) async {
