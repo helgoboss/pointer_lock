@@ -1,11 +1,11 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pointer_lock/pointer_lock_method_channel.dart';
+import 'package:pointer_lock/pointer_lock_channel.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MethodChannelPointerLock platform = MethodChannelPointerLock();
+  ChannelPointerLock platform = ChannelPointerLock();
   const MethodChannel channel = MethodChannel('pointer_lock');
 
   setUp(() {

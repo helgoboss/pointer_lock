@@ -1,9 +1,7 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'package:pointer_lock_example/manual_example.dart';
 
-import 'package:flutter/services.dart';
-import 'package:pointer_lock/pointer_lock.dart';
+import 'stream_example.dart';
 
 void main() {
   runApp(const MyApp());
@@ -17,67 +15,86 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Offset _lastPointerDelta = Offset.zero;
-  Stream<Offset>? _pointerLockSessionStream;
-  final _pointerLockPlugin = PointerLock();
-
-  @override
-  void initState() {
-    // This preparational call is necessary to make `lastPointerDelta` work on Windows. It comes with a caveat, so make
-    // sure to read its documentation.
-    _pointerLockPlugin.subscribeToRawInputData();
-    super.initState();
-  }
+  _Usage _usage = _Usage.manual;
+  bool _hidePointer = false;
 
   @override
   Widget build(BuildContext context) {
-    final stream = _pointerLockSessionStream;
     return MaterialApp(
+      theme: ThemeData(
+        useMaterial3: true,
+      ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('Try dragging the mouse in the drag area below!'),
+          centerTitle: true,
         ),
-        body: Listener(
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: (details) async {
-            if (details.buttons == kPrimaryMouseButton) {
-              await _pointerLockPlugin.hidePointer();
-              await _pointerLockPlugin.lockPointer();
-            } else {
-              setState(() {
-                _pointerLockSessionStream = _pointerLockPlugin.startPointerLockSession();
-              });
-            }
-          },
-          onPointerMove: (_) async {
-            final delta = await _pointerLockPlugin.lastPointerDelta();
-            if (!mounted) {
-              return;
-            }
-            setState(() {
-              _lastPointerDelta = delta;
-            });
-          },
-          onPointerUp: (_) async {
-            await _pointerLockPlugin.unlockPointer();
-            await _pointerLockPlugin.showPointer();
-          },
-          child: Center(
-            child: Column(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Options
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text('Last pointer delta: $_lastPointerDelta'),
-                if (stream != null)
-                  StreamBuilder(
-                    stream: stream,
-                    builder: (context, snapshot) {
-                      return Text('Error: ${snapshot.error}, Last offset: ${snapshot.data}');
+                // Hide pointer
+                Row(
+                  children: [
+                    const Text("Hide pointer when dragging"),
+                    Switch(
+                      value: _hidePointer,
+                      onChanged: (value) {
+                        setState(() {
+                          _hidePointer = value;
+                        });
+                      },
+                    )
+                  ],
+                ),
+                // Mode
+                Tooltip(
+                  message: "Usage should make a difference on Windows only",
+                  child: SegmentedButton<_Usage>(
+                    selected: {_usage},
+                    onSelectionChanged: (usages) {
+                      setState(() {
+                        _usage = usages.first;
+                      });
                     },
-                  )
+                    segments: const [
+                      ButtonSegment(
+                        value: _Usage.manual,
+                        label: Text("Manual usage"),
+                      ),
+                      ButtonSegment(
+                        value: _Usage.stream,
+                        label: Text("Stream usage"),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
+            Expanded(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.move,
+                child: Card(
+                  margin: const EdgeInsets.all(20),
+                  elevation: 1,
+                  child: switch (_usage) {
+                    _Usage.manual => ManualExample(hidePointer: _hidePointer),
+                    _Usage.stream => StreamExample(hidePointer: _hidePointer),
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+enum _Usage {
+  manual,
+  stream,
 }

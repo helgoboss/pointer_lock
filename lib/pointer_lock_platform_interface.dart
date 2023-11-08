@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'pointer_lock_method_channel.dart';
+import 'pointer_lock_channel.dart';
 
 abstract class PointerLockPlatform extends PlatformInterface {
   /// Constructs a PointerLockPlatform.
@@ -10,11 +10,11 @@ abstract class PointerLockPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static PointerLockPlatform _instance = MethodChannelPointerLock();
+  static PointerLockPlatform _instance = ChannelPointerLock();
 
   /// The default instance of [PointerLockPlatform] to use.
   ///
-  /// Defaults to [MethodChannelPointerLock].
+  /// Defaults to [ChannelPointerLock].
   static PointerLockPlatform get instance => _instance;
 
   /// Platform-specific implementations should set this with their own

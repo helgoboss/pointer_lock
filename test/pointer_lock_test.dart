@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock/pointer_lock_platform_interface.dart';
-import 'package:pointer_lock/pointer_lock_method_channel.dart';
+import 'package:pointer_lock/pointer_lock_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 // class MockPointerLockPlatform
@@ -15,8 +15,8 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 void main() {
   final PointerLockPlatform initialPlatform = PointerLockPlatform.instance;
 
-  test('$MethodChannelPointerLock is the default instance', () {
-    expect(initialPlatform, isInstanceOf<MethodChannelPointerLock>());
+  test('$ChannelPointerLock is the default instance', () {
+    expect(initialPlatform, isInstanceOf<ChannelPointerLock>());
   });
 
   test('getPlatformVersion', () async {
