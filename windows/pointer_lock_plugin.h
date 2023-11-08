@@ -28,9 +28,9 @@ class PointerLockPlugin : public flutter::Plugin {
 
  private:
    flutter::PluginRegistrarWindows* registrar_;
-   std::optional<int> rawInputDataProcId_;
-   LONG lastXDelta_ = 0;
-   LONG lastYDelta_ = 0;
+   std::optional<int> raw_input_data_proc_id_;
+   LONG last_x_delta_ = 0;
+   LONG last_y_delta_ = 0;
 
    bool SubscribeToRawInputData();
    void UnsubscribeFromRawInputData();
@@ -44,9 +44,9 @@ public:
 private:
   flutter::PluginRegistrarWindows* registrar_;
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
-  POINT lockedCursorPos_;
-  std::optional<std::tuple<int, int>> lastCursorPos_;
-  int procId_;
+  POINT locked_cursor_pos_;
+  std::optional<std::tuple<int, int>> last_cursor_pos_;
+  int proc_id_;
 };
 
 class PointerLockSessionStreamHandler : public flutter::StreamHandler<flutter::EncodableValue> {
