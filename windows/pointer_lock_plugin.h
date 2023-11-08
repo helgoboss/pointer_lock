@@ -2,6 +2,7 @@
 #define FLUTTER_PLUGIN_POINTER_LOCK_PLUGIN_H_
 
 #include <flutter/method_channel.h>
+#include <flutter/event_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 
 #include <memory>
@@ -34,6 +35,30 @@ class PointerLockPlugin : public flutter::Plugin {
    bool SubscribeToRawInputData();
    void UnsubscribeFromRawInputData();
    bool SubscribedToRawInputData();
+};
+
+struct PointerLockSession {
+public:
+  PointerLockSession(flutter::PluginRegistrarWindows* registrar, std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink);
+  ~PointerLockSession();
+private:
+  flutter::PluginRegistrarWindows* registrar_;
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
+  POINT lockedCursorPos_;
+  int procId_;
+};
+
+class PointerLockSessionStreamHandler : public flutter::StreamHandler<flutter::EncodableValue> {
+public:
+  PointerLockSessionStreamHandler(flutter::PluginRegistrarWindows* registrar);
+
+protected:
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(const flutter::EncodableValue* arguments, std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
+  std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(const flutter::EncodableValue* arguments) override;
+
+private:
+  flutter::PluginRegistrarWindows* registrar_;
+  std::unique_ptr<PointerLockSession> session_;
 };
 
 }  // namespace pointer_lock

@@ -50,8 +50,10 @@ class MethodChannelPointerLock extends PointerLockPlatform {
   @override
   Stream<Offset> startPointerLockSession() {
     return sessionEventChannel.receiveBroadcastStream().map((event) {
-      debugPrint(event);
-      return Offset.zero;
+      if (event == null || event is! Float64List || event.length < 2) {
+        return Offset.zero;
+      }
+      return Offset(event[0], event[1]);
     });
   }
 }

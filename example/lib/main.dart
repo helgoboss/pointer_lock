@@ -40,8 +40,8 @@ class _MyAppState extends State<MyApp> {
         body: Listener(
           behavior: HitTestBehavior.opaque,
           onPointerDown: (details) async {
-            await _pointerLockPlugin.hidePointer();
             if (details.buttons == kPrimaryMouseButton) {
+              await _pointerLockPlugin.hidePointer();
               await _pointerLockPlugin.lockPointer();
             } else {
               setState(() {

@@ -7,29 +7,39 @@
 #include <VersionHelpers.h>
 
 #include <flutter/method_channel.h>
+#include <flutter/event_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 
 #include <memory>
 #include <sstream>
 #include <hidusage.h>
+#include <windowsx.h>
 
 namespace pointer_lock {
 
 // static
 void PointerLockPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
-  auto channel =
-      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          registrar->messenger(), "pointer_lock",
-          &flutter::StandardMethodCodec::GetInstance());
+  auto method_channel = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      registrar->messenger(), 
+      "pointer_lock",
+      &flutter::StandardMethodCodec::GetInstance()
+  );
+  auto event_channel = std::make_unique<flutter::EventChannel<flutter::EncodableValue>>(
+    registrar->messenger(),
+    "pointer_lock_session",
+    &flutter::StandardMethodCodec::GetInstance()
+  );
 
   auto plugin = std::make_unique<PointerLockPlugin>(registrar);
 
-  channel->SetMethodCallHandler(
+  method_channel->SetMethodCallHandler(
       [plugin_pointer = plugin.get()](const auto &call, auto result) {
         plugin_pointer->HandleMethodCall(call, std::move(result));
-      });
+      }
+  );
+  event_channel->SetStreamHandler(std::make_unique<PointerLockSessionStreamHandler>(registrar));
 
   registrar->AddPlugin(std::move(plugin));
 }
@@ -58,9 +68,11 @@ void PointerLockPlugin::HandleMethodCall(
     ClipCursor(NULL);
     result->Success();
   } else if (method_call.method_name().compare("hidePointer") == 0) {
+    OutputDebugStringW(L"hidePointer");
     ShowCursor(0);
     result->Success();
   } else if (method_call.method_name().compare("showPointer") == 0) {
+    OutputDebugStringW(L"showPointer");
     ShowCursor(1);
     result->Success();
   } else if (method_call.method_name().compare("subscribeToRawInputData") == 0) {
@@ -128,6 +140,78 @@ void PointerLockPlugin::UnsubscribeFromRawInputData() {
 
 bool PointerLockPlugin::SubscribedToRawInputData() {
   return rawInputDataProcId_.has_value();
+}
+
+PointerLockSessionStreamHandler::PointerLockSessionStreamHandler(flutter::PluginRegistrarWindows* registrar) {
+  registrar_ = registrar;
+}
+
+std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLockSessionStreamHandler::OnListenInternal(
+  const flutter::EncodableValue* arguments, 
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events
+) {
+  session_ = std::make_unique<PointerLockSession>(registrar_, std::move(events));
+  return nullptr;
+}
+
+std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLockSessionStreamHandler::OnCancelInternal(const flutter::EncodableValue* arguments) {
+  session_.reset();
+  return nullptr;
+}
+
+PointerLockSession::PointerLockSession(
+  flutter::PluginRegistrarWindows* registrar,
+  std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink
+) : registrar_(registrar), sink_(std::move(sink)), lockedCursorPos_() {
+  // Remember the current cursor position so that we can restore it on each mouse move
+  GetCursorPos(&lockedCursorPos_);
+  // Listen to mouse moves and mouse button releases
+  SetCapture(GetParent(registrar_->GetView()->GetNativeWindow()));
+  procId_ = registrar_->RegisterTopLevelWindowProcDelegate(std::move(
+    [this](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+      switch (message) {
+      case WM_MOUSEMOVE: {
+        // Restore initial cursor position (this is what actually locks the pointer).
+        // This needs to happen synchronously, right here in the event handler. Otherwise
+        // things get very flaky. If this wouldn't be the case, we could do everything on 
+        // Flutter side and wouldn't even need an EventChannel approach.
+        SetCursorPos(lockedCursorPos_.x, lockedCursorPos_.y);
+        // Calculate mouse move delta
+        int x = GET_X_LPARAM(lparam);
+        int y = GET_Y_LPARAM(lparam);
+        int xDelta = x - lockedCursorPos_.x;
+        int yDelta = y - lockedCursorPos_.y;
+        // Send mouse move delta to Flutter
+        std::vector<double> vec{
+          static_cast<double>(xDelta),
+          static_cast<double>(yDelta)
+        };
+        sink_->Success(flutter::EncodableValue(std::move(vec)));
+        return std::nullopt;
+      }
+      case WM_LBUTTONUP:
+      case WM_RBUTTONUP: {
+        // A popular use case is to start the pointer-lock session when the user presses a mouse
+        // button down and end it on release of a button. Unfortunately, SetCapture prevents Flutter
+        // from receiving mouse events, so we can't listen to the button release on Flutter side.
+        // That's why we do it here. Sending an end-of-stream event to Flutter will trigger OnCancelInternal()
+        // and that will release the capture.  
+        // TODO Make this more flexible. I can imagine there are cases where the pointer-lock session
+        //  is not controlled by button press/release.
+        sink_->EndOfStream();
+        return std::nullopt;
+      }
+      default:
+        return std::nullopt;
+      }
+    }
+  ));
+}
+
+PointerLockSession::~PointerLockSession() {
+  OutputDebugStringW(L"Ending pointer lock session");
+  registrar_->UnregisterTopLevelWindowProcDelegate(procId_);
+  ReleaseCapture();
 }
 
 }  // namespace pointer_lock
