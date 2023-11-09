@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'pointer_lock.dart';
+import '../pointer_lock.dart';
 import 'pointer_lock_channel.dart';
 
 abstract class PointerLockPlatform extends PlatformInterface {

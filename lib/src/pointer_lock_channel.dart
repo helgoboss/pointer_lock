@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'pointer_lock.dart';
+import '../pointer_lock.dart';
 import 'pointer_lock_platform_interface.dart';
 import 'dart:io' show Platform;
 

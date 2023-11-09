@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pointer_lock/pointer_lock_channel.dart';
+import 'package:pointer_lock/src/pointer_lock_channel.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
