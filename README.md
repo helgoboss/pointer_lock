@@ -18,7 +18,7 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  window_manager:
+  pointer_lock:
     git:
       url: https://github.com/helgoboss/pointer_lock.git
       ref: main

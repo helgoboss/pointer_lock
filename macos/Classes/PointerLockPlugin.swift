@@ -3,9 +3,6 @@ import FlutterMacOS
 
 public class PointerLockPlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
-    guard let flutterView = registrar.view else { return }
-    guard let flutterWindow = flutterView.window else { return }
-
     let channel = FlutterMethodChannel(name: "pointer_lock", binaryMessenger: registrar.messenger)
     let instance = PointerLockPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
