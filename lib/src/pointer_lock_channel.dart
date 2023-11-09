@@ -100,9 +100,9 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 }
 
-/// "Steals" pointer events from the usual Flutter processing, emitting them as a stream.
+/// Taps pointer events from the usual Flutter processing, emitting them as a stream.
 Stream<PointerDataPacket> _getPointerDataPacketStream() {
-  final previousCallback = PlatformDispatcher.instance.onPointerDataPacket;
+  final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
   void restorePreviousCallback() {
     PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
   }
@@ -111,6 +111,7 @@ Stream<PointerDataPacket> _getPointerDataPacketStream() {
   );
   controller.onListen = () {
     PlatformDispatcher.instance.onPointerDataPacket = (packet) {
+      previousCallback(packet);
       controller.add(packet);
     };
   };
