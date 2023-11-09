@@ -14,6 +14,7 @@ class StreamExample extends StatefulWidget {
 class _StreamExampleState extends State<StreamExample> {
   final _pointerLockPlugin = PointerLock();
   Offset _lastPointerDelta = Offset.zero;
+  Offset _accumulation = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +35,10 @@ class _StreamExampleState extends State<StreamExample> {
           },
         );
       },
-      child: InfoPanel(lastPointerDelta: _lastPointerDelta),
+      child: InfoPanel(
+        lastPointerDelta: _lastPointerDelta,
+        accumulation: _accumulation,
+      ),
     );
   }
 
@@ -44,6 +48,7 @@ class _StreamExampleState extends State<StreamExample> {
     }
     setState(() {
       _lastPointerDelta = delta;
+      _accumulation += delta;
     });
   }
 }

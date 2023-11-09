@@ -14,6 +14,7 @@ class ManualExample extends StatefulWidget {
 class _ManualExampleState extends State<ManualExample> {
   final _pointerLockPlugin = PointerLock();
   Offset _lastPointerDelta = Offset.zero;
+  Offset _accumulation = Offset.zero;
 
   @override
   void initState() {
@@ -43,7 +44,10 @@ class _ManualExampleState extends State<ManualExample> {
         }
         await _pointerLockPlugin.unlockPointer();
       },
-      child: InfoPanel(lastPointerDelta: _lastPointerDelta),
+      child: InfoPanel(
+        lastPointerDelta: _lastPointerDelta,
+        accumulation: _accumulation,
+      ),
     );
   }
 
@@ -53,6 +57,7 @@ class _ManualExampleState extends State<ManualExample> {
     }
     setState(() {
       _lastPointerDelta = delta;
+      _accumulation += delta;
     });
   }
 }

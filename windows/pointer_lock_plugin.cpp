@@ -107,7 +107,7 @@ bool PointerLockPlugin::SubscribeToRawInputData() {
   if (!RegisterRawInputDevices(Rid, 1, sizeof(Rid[0]))) {
     return false;
   }
-  // Process WM_INPUT notifications
+  // Process WM_INPUT notifications (extract mouse deltas)
   raw_input_data_proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate([this](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     switch (message) {
     case WM_INPUT: {
@@ -157,12 +157,23 @@ std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLoc
   return nullptr;
 }
 
+int print_log(const char* format, ...)
+{
+  static char s_printf_buf[1024];
+  va_list args;
+  va_start(args, format);
+  _vsnprintf_s(s_printf_buf, sizeof(s_printf_buf), format, args);
+  va_end(args);
+  OutputDebugStringA(s_printf_buf);
+  return 0;
+}
+
 PointerLockSession::PointerLockSession(
   flutter::PluginRegistrarWindows* registrar,
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink
-) : registrar_(registrar), sink_(std::move(sink)), locked_cursor_pos_() {
+) : registrar_(registrar), sink_(std::move(sink)), locked_pointer_screen_pos_() {
   // Remember the current cursor position so that we can restore it on each mouse move
-  GetCursorPos(&locked_cursor_pos_);
+  GetCursorPos(&locked_pointer_screen_pos_);
   // Listen to mouse moves and mouse button releases
   SetCapture(GetParent(registrar_->GetView()->GetNativeWindow()));
   proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(std::move(
@@ -173,22 +184,23 @@ PointerLockSession::PointerLockSession(
         // This needs to happen synchronously, right here in the event handler. Otherwise
         // things get very flaky. If this wouldn't be the case, we could do everything on 
         // Flutter side and wouldn't even need an EventChannel approach.
-        SetCursorPos(locked_cursor_pos_.x, locked_cursor_pos_.y);
+        if (!SetCursorPos(locked_pointer_screen_pos_.x, locked_pointer_screen_pos_.y)) {
+          return std::nullopt;
+        }
         // Calculate mouse move delta
         int x = GET_X_LPARAM(lparam);
         int y = GET_Y_LPARAM(lparam);
-        int xDelta = 0;
-        int yDelta = 0;
-        if (last_cursor_pos_.has_value()) {
-          auto p = last_cursor_pos_.value();
-          xDelta = x - std::get<0>(p);
-          yDelta = y - std::get<1>(p);
+        POINT locked_pointer_window_pos = locked_pointer_screen_pos_;
+        ScreenToClient(hwnd, &locked_pointer_window_pos);
+        int x_delta = x - locked_pointer_window_pos.x;
+        int y_delta = y - locked_pointer_window_pos.y;
+        if (x_delta == 0 && y_delta == 0) {
+          return std::nullopt;
         }
-        last_cursor_pos_ = std::make_tuple(x, y);
         // Send mouse move delta to Flutter
         std::vector<double> vec{
-          static_cast<double>(xDelta),
-          static_cast<double>(yDelta)
+          static_cast<double>(x_delta),
+          static_cast<double>(y_delta)
         };
         sink_->Success(flutter::EncodableValue(std::move(vec)));
         return std::nullopt;

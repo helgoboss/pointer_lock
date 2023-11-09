@@ -28,7 +28,12 @@ class PointerLockPlugin : public flutter::Plugin {
 
  private:
    flutter::PluginRegistrarWindows* registrar_;
+
+   // ID of the WindowProcDelegate registration in case we are subscribed to raw input data.
+   // For being able to unregister it at the end.
    std::optional<int> raw_input_data_proc_id_;
+   
+   // Mouse deltas extracted from the last incoming raw input data.
    LONG last_x_delta_ = 0;
    LONG last_y_delta_ = 0;
 
@@ -43,9 +48,14 @@ public:
   ~PointerLockSession();
 private:
   flutter::PluginRegistrarWindows* registrar_;
+  
+  // Event sink. Lets us send events to Flutter. 
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
-  POINT locked_cursor_pos_;
-  std::optional<std::tuple<int, int>> last_cursor_pos_;
+
+  // Position of the locked pointer in screen coordinates.
+  POINT locked_pointer_screen_pos_;
+
+  // ID of the WindowProcDelegate registration that receives mouse events. For being able to unregister it at the end.
   int proc_id_;
 };
 
@@ -54,11 +64,16 @@ public:
   PointerLockSessionStreamHandler(flutter::PluginRegistrarWindows* registrar);
 
 protected:
+  // Called when a pointer lock session is requested.
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnListenInternal(const flutter::EncodableValue* arguments, std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events) override;
+  
+  // Called when a pointer lock session ends (either triggered from the Flutter side or by us).
   std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> OnCancelInternal(const flutter::EncodableValue* arguments) override;
 
 private:
   flutter::PluginRegistrarWindows* registrar_;
+  
+  // Empty in the beginning. Set as long as a pointer lock session is active.
   std::unique_ptr<PointerLockSession> session_;
 };
 
