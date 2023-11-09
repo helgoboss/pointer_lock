@@ -17,7 +17,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _hidePointer = false;
-  _UsageMode _usageMode = _UsageMode.manual;
+  _UsageMode _usageMode = _UsageMode.stream;
   WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
 
   @override
@@ -64,12 +64,12 @@ class _MyAppState extends State<MyApp> {
                   },
                   segments: const [
                     ButtonSegment(
-                      value: _UsageMode.manual,
-                      label: Text("Manual usage"),
-                    ),
-                    ButtonSegment(
                       value: _UsageMode.stream,
                       label: Text("Stream usage"),
+                    ),
+                    ButtonSegment(
+                      value: _UsageMode.manual,
+                      label: Text("Manual usage"),
                     ),
                   ],
                 ),

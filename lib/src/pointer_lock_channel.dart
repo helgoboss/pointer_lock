@@ -58,16 +58,20 @@ class ChannelPointerLock extends PointerLockPlatform {
   Stream<Offset> startPointerLockSession({
     WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
   }) {
-    if (windowsMode == WindowsPointerLockMode.capture && Platform.isWindows) {
-      return sessionEventChannel.receiveBroadcastStream().map((event) {
-        if (event == null || event is! Float64List || event.length < 2) {
-          return Offset.zero;
-        }
-        return Offset(event[0], event[1]);
-      });
+    if (Platform.isWindows) {
+      switch (windowsMode) {
+        case WindowsPointerLockMode.capture:
+          return sessionEventChannel.receiveBroadcastStream().map((event) {
+            if (event == null || event is! Float64List || event.length < 2) {
+              return Offset.zero;
+            }
+            return Offset(event[0], event[1]);
+          });
+        case WindowsPointerLockMode.clip:
+          subscribeToRawInputData();
+          return _synthesizePointerLockSession();
+      }
     } else {
-      // On platforms that don't have / don't need the SetCapture/SetCursorPos/ReleaseCapture approach, we can just
-      // "make up" a stream from the existing methods.
       return _synthesizePointerLockSession();
     }
   }
