@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/manual_example.dart';
 
 import 'stream_example.dart';
@@ -15,8 +16,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  _Usage _usage = _Usage.manual;
   bool _hidePointer = false;
+  _UsageMode _usageMode = _UsageMode.manual;
+  WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +42,7 @@ class _MyAppState extends State<MyApp> {
                 Row(
                   children: [
                     const Text("Hide pointer when dragging"),
+                    _horizontalSpace,
                     Switch(
                       value: _hidePointer,
                       onChanged: (value) {
@@ -50,24 +53,51 @@ class _MyAppState extends State<MyApp> {
                     )
                   ],
                 ),
-                // Mode
-                Tooltip(
-                  message: "Usage mode should make a difference on Windows only",
-                  child: SegmentedButton<_Usage>(
-                    selected: {_usage},
-                    onSelectionChanged: (usages) {
-                      setState(() {
-                        _usage = usages.first;
-                      });
-                    },
-                    segments: const [
-                      ButtonSegment(
-                        value: _Usage.manual,
-                        label: Text("Manual usage"),
-                      ),
-                      ButtonSegment(
-                        value: _Usage.stream,
-                        label: Text("Stream usage"),
+                // Usage mode
+                SegmentedButton<_UsageMode>(
+                  showSelectedIcon: false,
+                  selected: {_usageMode},
+                  onSelectionChanged: (modes) {
+                    setState(() {
+                      _usageMode = modes.first;
+                    });
+                  },
+                  segments: const [
+                    ButtonSegment(
+                      value: _UsageMode.manual,
+                      label: Text("Manual usage"),
+                    ),
+                    ButtonSegment(
+                      value: _UsageMode.stream,
+                      label: Text("Stream usage"),
+                    ),
+                  ],
+                ),
+                // Windows mode
+                if (_usageMode == _UsageMode.stream) Tooltip(
+                  message: "Windows mode should make a difference on Windows only",
+                  child: Row(
+                    children: [
+                      const Text("Windows mode:"),
+                      _horizontalSpace,
+                      SegmentedButton<WindowsPointerLockMode>(
+                        showSelectedIcon: false,
+                        selected: {_windowsMode},
+                        onSelectionChanged: (modes) {
+                          setState(() {
+                            _windowsMode = modes.first;
+                          });
+                        },
+                        segments: const [
+                          ButtonSegment(
+                            value: WindowsPointerLockMode.capture,
+                            label: Text("Capture"),
+                          ),
+                          ButtonSegment(
+                            value: WindowsPointerLockMode.clip,
+                            label: Text("Clip"),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -80,9 +110,9 @@ class _MyAppState extends State<MyApp> {
                 child: Card(
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
-                  child: switch (_usage) {
-                    _Usage.manual => ManualExample(hidePointer: _hidePointer),
-                    _Usage.stream => StreamExample(hidePointer: _hidePointer),
+                  child: switch (_usageMode) {
+                    _UsageMode.manual => ManualExample(hidePointer: _hidePointer),
+                    _UsageMode.stream => StreamExample(hidePointer: _hidePointer, windowsMode: _windowsMode),
                   },
                 ),
               ),
@@ -94,7 +124,9 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-enum _Usage {
+enum _UsageMode {
   manual,
   stream,
 }
+
+const _horizontalSpace = SizedBox(width: 10);

@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
+import 'pointer_lock.dart';
 import 'pointer_lock_channel.dart';
 
 abstract class PointerLockPlatform extends PlatformInterface {
@@ -49,7 +50,9 @@ abstract class PointerLockPlatform extends PlatformInterface {
     throw UnimplementedError('lastPointerDelta() has not been implemented.');
   }
 
-  Stream<Offset> startPointerLockSession() {
+  Stream<Offset> startPointerLockSession({
+    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+  }) {
     throw UnimplementedError('startPointerLockSession() has not been implemented.');
   }
 }

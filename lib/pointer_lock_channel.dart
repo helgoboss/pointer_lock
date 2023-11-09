@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'pointer_lock.dart';
 import 'pointer_lock_platform_interface.dart';
 import 'dart:io' show Platform;
 
@@ -54,8 +55,10 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Stream<Offset> startPointerLockSession() {
-    if (Platform.isWindows) {
+  Stream<Offset> startPointerLockSession({
+    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+  }) {
+    if (windowsMode == WindowsPointerLockMode.capture && Platform.isWindows) {
       return sessionEventChannel.receiveBroadcastStream().map((event) {
         if (event == null || event is! Float64List || event.length < 2) {
           return Offset.zero;
