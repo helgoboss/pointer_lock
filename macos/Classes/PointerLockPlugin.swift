@@ -26,6 +26,10 @@ public class PointerLockPlugin: NSObject, FlutterPlugin {
       let (x, y) = CGGetLastMouseDelta()
       let list: [Double] = [Double(x), Double(y)];
       result(list)
+    case "pointerPositionOnScreen":
+      let point = NSEvent.mouseLocation
+      let list: [Double] = [Double(point.x), Double(point.y)];
+      result(list)
     default:
       result(FlutterMethodNotImplemented)
     }

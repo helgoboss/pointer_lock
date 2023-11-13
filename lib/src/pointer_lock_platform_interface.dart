@@ -50,6 +50,10 @@ abstract class PointerLockPlatform extends PlatformInterface {
     throw UnimplementedError('lastPointerDelta() has not been implemented.');
   }
 
+  Future<Offset> pointerPositionOnScreen() {
+    throw UnimplementedError('pointerPositionOnScreen() has not been implemented.');
+  }
+
   Stream<Offset> startPointerLockSession({
     WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
   }) {

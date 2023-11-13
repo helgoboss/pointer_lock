@@ -48,10 +48,13 @@ class ChannelPointerLock extends PointerLockPlatform {
   @override
   Future<Offset> lastPointerDelta() async {
     final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
-    if (list == null || list.length < 2) {
-      return Offset.zero;
-    }
-    return Offset(list[0], list[1]);
+    return _convertListToOffset(list);
+  }
+
+  @override
+  Future<Offset> pointerPositionOnScreen() async {
+    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
+    return _convertListToOffset(list);
   }
 
   @override
@@ -116,4 +119,11 @@ Stream<PointerDataPacket> _getPointerDataPacketStream() {
     };
   };
   return controller.stream;
+}
+
+Offset _convertListToOffset(List<double>? list) {
+  if (list == null || list.length < 2) {
+    return Offset.zero;
+  }
+  return Offset(list[0], list[1]);
 }

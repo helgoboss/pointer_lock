@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/manual_example.dart';
+import 'package:pointer_lock_example/mouse_info.dart';
 
 import 'stream_example.dart';
 
@@ -74,34 +75,35 @@ class _MyAppState extends State<MyApp> {
                   ],
                 ),
                 // Windows mode
-                if (_usageMode == _UsageMode.stream) Tooltip(
-                  message: "Windows mode should make a difference on Windows only",
-                  child: Row(
-                    children: [
-                      const Text("Windows mode:"),
-                      _horizontalSpace,
-                      SegmentedButton<WindowsPointerLockMode>(
-                        showSelectedIcon: false,
-                        selected: {_windowsMode},
-                        onSelectionChanged: (modes) {
-                          setState(() {
-                            _windowsMode = modes.first;
-                          });
-                        },
-                        segments: const [
-                          ButtonSegment(
-                            value: WindowsPointerLockMode.capture,
-                            label: Text("Capture"),
-                          ),
-                          ButtonSegment(
-                            value: WindowsPointerLockMode.clip,
-                            label: Text("Clip"),
-                          ),
-                        ],
-                      ),
-                    ],
+                if (_usageMode == _UsageMode.stream)
+                  Tooltip(
+                    message: "Windows mode should make a difference on Windows only",
+                    child: Row(
+                      children: [
+                        const Text("Windows mode:"),
+                        _horizontalSpace,
+                        SegmentedButton<WindowsPointerLockMode>(
+                          showSelectedIcon: false,
+                          selected: {_windowsMode},
+                          onSelectionChanged: (modes) {
+                            setState(() {
+                              _windowsMode = modes.first;
+                            });
+                          },
+                          segments: const [
+                            ButtonSegment(
+                              value: WindowsPointerLockMode.capture,
+                              label: Text("Capture"),
+                            ),
+                            ButtonSegment(
+                              value: WindowsPointerLockMode.clip,
+                              label: Text("Clip"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
             Expanded(
@@ -117,6 +119,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
             ),
+            const MouseInfo(),
           ],
         ),
       ),

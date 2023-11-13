@@ -61,13 +61,18 @@ class PointerLock {
     return PointerLockPlatform.instance.subscribeToRawInputData();
   }
 
-  /// Returns the last mouse move delta.
+  /// Returns the last mouse move delta, even while the pointer is locked.
   ///
   /// On Windows, it's necessary to call [PointerLock.subscribeToRawInputData] before calling this.
   ///
   /// On Windows, this reports values received in `WM_INPUT` messages. On macOS, this uses `CGGetLastMouseDelta`.
   Future<Offset> lastPointerDelta() {
     return PointerLockPlatform.instance.lastPointerDelta();
+  }
+
+  /// Returns the position of the mouse pointer in screen coordinates.
+  Future<Offset> pointerPositionOnScreen() {
+    return PointerLockPlatform.instance.pointerPositionOnScreen();
   }
 
   /// Locks the pointer and returns a stream of deltas as the mouse is being moved.
