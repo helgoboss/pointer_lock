@@ -29,6 +29,8 @@ class PointerLockPlugin : public flutter::Plugin {
  private:
    flutter::PluginRegistrarWindows* registrar_;
 
+   bool pointer_visible_ = true;
+
    // ID of the WindowProcDelegate registration in case we are subscribed to raw input data.
    // For being able to unregister it at the end.
    std::optional<int> raw_input_data_proc_id_;

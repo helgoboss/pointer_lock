@@ -68,10 +68,16 @@ void PointerLockPlugin::HandleMethodCall(
     ClipCursor(NULL);
     result->Success();
   } else if (method_call.method_name().compare("hidePointer") == 0) {
-    ShowCursor(0);
+    if (pointer_visible_) {
+      pointer_visible_ = false;
+      ShowCursor(0);
+    }
     result->Success();
   } else if (method_call.method_name().compare("showPointer") == 0) {
-    ShowCursor(1);
+    if (!pointer_visible_) {
+      pointer_visible_ = true;
+      ShowCursor(1);
+    }
     result->Success();
   } else if (method_call.method_name().compare("subscribeToRawInputData") == 0) {
     if (!SubscribeToRawInputData()) {
