@@ -38,6 +38,8 @@ flutter:
         pluginClass: PointerLockPlugin
       windows:
         pluginClass: PointerLockPluginCApi
+      linux:
+        pluginClass: PointerLockPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
