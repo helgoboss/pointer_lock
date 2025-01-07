@@ -14,6 +14,7 @@
 
 struct _PointerLockPlugin {
   GObject parent_instance;
+  FlPluginRegistrar* registrar;
 };
 
 G_DEFINE_TYPE(PointerLockPlugin, pointer_lock_plugin, g_object_get_type())
@@ -28,6 +29,8 @@ static void pointer_lock_plugin_handle_method_call(
 
   if (strcmp(method, "getPlatformVersion") == 0) {
     response = get_platform_version();
+  } else if (strcmp(method, "pointerPositionOnScreen") == 0) {
+    response = pointer_position_on_screen(self->registrar);
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }
@@ -40,6 +43,35 @@ FlMethodResponse* get_platform_version() {
   uname(&uname_data);
   g_autofree gchar *version = g_strdup_printf("Linux %s", uname_data.version);
   g_autoptr(FlValue) result = fl_value_new_string(version);
+  return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+}
+
+FlMethodResponse* pointer_position_on_screen(FlPluginRegistrar* registrar) {
+  FlView* view = fl_plugin_registrar_get_view(registrar);
+  if (!view) {
+    return FL_METHOD_RESPONSE(
+        fl_method_error_response_new("No screen", nullptr, nullptr));
+  }
+  GtkWindow* window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  GdkDisplay *display = gtk_widget_get_display(GTK_WIDGET(window));
+  if (!display) {
+    return FL_METHOD_RESPONSE(
+        fl_method_error_response_new("No display", nullptr, nullptr));
+  }
+  GdkSeat *seat = gdk_display_get_default_seat(display);
+  if (!seat) {
+    return FL_METHOD_RESPONSE(
+        fl_method_error_response_new("No seat", nullptr, nullptr));
+  }
+  GdkDevice *pointer = gdk_seat_get_pointer(seat);
+  if (!pointer) {
+    return FL_METHOD_RESPONSE(
+        fl_method_error_response_new("No pointer", nullptr, nullptr));
+  }
+  int x, y;
+  gdk_device_get_position(pointer, nullptr, &x, &y);
+
+  g_autoptr(FlValue) result = fl_value_new_float_list((double[]){static_cast<double>(x), static_cast<double>(y)}, 2);
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
@@ -62,7 +94,7 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
 void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
   PointerLockPlugin* plugin = POINTER_LOCK_PLUGIN(
       g_object_new(pointer_lock_plugin_get_type(), nullptr));
-
+  plugin->registrar = FL_PLUGIN_REGISTRAR(g_object_ref(registrar));
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   g_autoptr(FlMethodChannel) channel =
       fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),

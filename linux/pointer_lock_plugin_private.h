@@ -8,3 +8,6 @@
 
 // Handles the getPlatformVersion method call.
 FlMethodResponse *get_platform_version();
+
+// Handles the pointerPositionOnScreen method call.
+FlMethodResponse *pointer_position_on_screen(FlPluginRegistrar* registrar);
