@@ -22,7 +22,8 @@ endfunction()
 # === Flutter Library ===
 # System-level dependencies.
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+pkg_check_modules(WL_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
+pkg_check_modules(WL_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
@@ -67,7 +68,8 @@ target_link_libraries(flutter INTERFACE
   PkgConfig::GTK
   PkgConfig::GLIB
   PkgConfig::GIO
-  PkgConfig::X11
+  PkgConfig::WL_CLIENT
+  PkgConfig::WL_PROTOCOLS
 )
 add_dependencies(flutter flutter_assemble)
 

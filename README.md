@@ -66,3 +66,13 @@ raw input (`WM_INPUT` messages).
 I currently don't see any possibility to use the `SetCapture` technique in manual usage mode because
 `SetCapture` seems to prevent Flutter itself from receiving mouse events, which makes it difficult
 to yield control back to Flutter in response to a mouse event.
+
+## Development
+
+### Linux
+
+The header `linux/include/pointer-constraints-unstable-v1-client-protocol.h` was generated like this:
+
+```sh
+wayland-scanner client-header /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml linux/include/pointer-constraints-unstable-v1-client-protocol.h
+```

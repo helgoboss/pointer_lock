@@ -5,9 +5,8 @@
 #include <sys/utsname.h>
 
 #include <cstring>
-#include <gdk/gdkx.h>
-// #include <gdk/gdkwayland.h>
-// #include "include/pointer-constraints-unstable-v1-client-protocol.h"
+#include <gdk/gdkwayland.h>
+#include "include/pointer-constraints-unstable-v1-client-protocol.h"
 
 #include "pointer_lock_plugin_private.h"
 
@@ -203,17 +202,6 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpoin
   //   return GDK_EVENT_STOP;
   // }
   g_print("Mouse delta: dx=%.2f, dy=%.2f\n", dx, dy);
-  auto* display = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(widget));
-  // float scaleFactor = m_webPage.deviceScaleFactor();
-  // IntSize warp = delta;
-  // warp.scale(-scaleFactor);
-  if (!display) {
-    g_print("couldn't get X display");
-    return GDK_EVENT_STOP;
-  }
-  int warp_x = 100;
-  int warp_y = 100;
-  XWarpPointer(display, None, None, 0, 0, 0, 0, warp_x, warp_y);
 
   return GDK_EVENT_STOP;
 }
