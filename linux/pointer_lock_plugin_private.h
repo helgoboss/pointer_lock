@@ -6,8 +6,8 @@
 // https://github.com/flutter/flutter/issues/88724 for current limitations
 // in the unit-testable API.
 
-// Handles the getPlatformVersion method call.
-FlMethodResponse *get_platform_version();
-
-// Handles the pointerPositionOnScreen method call.
-FlMethodResponse *pointer_position_on_screen(FlPluginRegistrar* registrar);
+FlMethodResponse *pointer_position_on_screen(const PointerLockPlugin* plugin);
+FlMethodResponse *set_lock_pointer(const PointerLockPlugin* plugin, bool lock);
+FlMethodResponse *set_show_pointer(const PointerLockPlugin* plugin, bool show);
+FlMethodResponse *last_pointer_delta(const PointerLockPlugin* plugin);
+FlMethodResponse *set_subscribe_to_raw_input_data(const PointerLockPlugin* plugin, bool subscribe);
