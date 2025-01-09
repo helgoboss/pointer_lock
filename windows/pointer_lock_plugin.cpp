@@ -55,15 +55,26 @@ PointerLockPlugin::~PointerLockPlugin() {
 void PointerLockPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-  if (method_call.method_name().compare("lockPointer") == 0) {
+  if (method_call.method_name().compare("pointerPositionOnScreen") == 0) {
     POINT cursor_pos;
     if (!GetCursorPos(&cursor_pos)) {
-      result->Error("UNAVAILABLE", "Couldn't get current cursor position");
-      return;
+        result->Error("UNAVAILABLE", "Couldn't get current cursor position");
+        return;
     }
-    RECT rect{ cursor_pos.x, cursor_pos.y, cursor_pos.x, cursor_pos.y };
-    ClipCursor(&rect);
-    result->Success();
+    std::vector<double> vec{
+        static_cast<double>(cursor_pos.x),
+        static_cast<double>(cursor_pos.y)
+    };
+    result->Success(flutter::EncodableValue(std::move(vec)));
+  } else if (method_call.method_name().compare("lockPointer") == 0) {
+      POINT cursor_pos;
+      if (!GetCursorPos(&cursor_pos)) {
+          result->Error("UNAVAILABLE", "Couldn't get current cursor position");
+          return;
+      }
+      RECT rect{ cursor_pos.x, cursor_pos.y, cursor_pos.x, cursor_pos.y };
+      ClipCursor(&rect);
+      result->Success();
   } else if (method_call.method_name().compare("unlockPointer") == 0) {
     ClipCursor(NULL);
     result->Success();
