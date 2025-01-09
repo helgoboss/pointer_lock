@@ -47,13 +47,15 @@ class ChannelPointerLock extends PointerLockPlatform {
 
   @override
   Future<Offset> lastPointerDelta() async {
-    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    final list =
+        await methodChannel.invokeListMethod<double>('lastPointerDelta');
     return _convertListToOffset(list);
   }
 
   @override
   Future<Offset> pointerPositionOnScreen() async {
-    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
+    final list =
+        await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
     return _convertListToOffset(list);
   }
 
@@ -67,24 +69,18 @@ class ChannelPointerLock extends PointerLockPlatform {
         case WindowsPointerLockMode.capture:
           // With capture mode, we pass control to the platform-specific code for the length
           // of the complete session.
-          // TODO-high CONTINUE Somehow pass cursor argument or manually hide cursor at start AND show at end of stream
-          return sessionEventChannel.receiveBroadcastStream().map((event) {
-            if (event == null || event is! Float64List || event.length < 2) {
-              return Offset.zero;
-            }
-            return Offset(event[0], event[1]);
-          });
+          return _startCaptureSession(cursor);
         case WindowsPointerLockMode.clip:
           // With clip mode, Dart stays in control during the session.
           subscribeToRawInputData();
-          return _synthesizePointerLockSession(cursor: cursor);
+          return _startNormalSession(cursor: cursor);
       }
     } else {
-      return _synthesizePointerLockSession(cursor: cursor);
+      return _startNormalSession(cursor: cursor);
     }
   }
 
-  Stream<Offset> _synthesizePointerLockSession({
+  Stream<Offset> _startNormalSession({
     required PointerLockCursor cursor,
   }) async* {
     if (cursor == PointerLockCursor.hidden) {
@@ -112,6 +108,26 @@ class ChannelPointerLock extends PointerLockPlatform {
       if (isMove) {
         yield await lastPointerDelta();
       }
+    }
+  }
+  Stream<Offset> _startCaptureSession(PointerLockCursor cursor) async* {
+    Offset convertEventToOffset(dynamic event) {
+      if (event == null || event is! Float64List || event.length < 2) {
+        return Offset.zero;
+      }
+      return Offset(event[0], event[1]);
+    }
+    if (cursor == PointerLockCursor.hidden) {
+      await hidePointer();
+    }
+    final originalStream = sessionEventChannel
+        .receiveBroadcastStream()
+        .map(convertEventToOffset);
+    await for (final value in originalStream) {
+      yield value;
+    }
+    if (cursor == PointerLockCursor.hidden) {
+      await showPointer();
     }
   }
 }
