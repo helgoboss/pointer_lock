@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/info_panel.dart';
 
-class StreamExample extends StatefulWidget {
+class PointerLockArea extends StatefulWidget {
   final bool hidePointer;
   final WindowsPointerLockMode windowsMode;
 
-  const StreamExample({
+  const PointerLockArea({
     super.key,
     required this.hidePointer,
     required this.windowsMode,
   });
 
   @override
-  State<StreamExample> createState() => _StreamExampleState();
+  State<PointerLockArea> createState() => _PointerLockAreaState();
 }
 
-class _StreamExampleState extends State<StreamExample> {
+class _PointerLockAreaState extends State<PointerLockArea> {
   final _pointerLockPlugin = PointerLock();
   Offset _lastPointerDelta = Offset.zero;
   Offset _accumulation = Offset.zero;
@@ -26,17 +26,13 @@ class _StreamExampleState extends State<StreamExample> {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (details) async {
-        if (widget.hidePointer) {
-          await _pointerLockPlugin.hidePointer();
-        }
-        _pointerLockPlugin.startPointerLockSession(windowsMode: widget.windowsMode).listen(
+        final session = _pointerLockPlugin.startPointerLockSession(
+          windowsMode: widget.windowsMode,
+          cursor: widget.hidePointer ? PointerLockCursor.hidden : PointerLockCursor.normal,
+        );
+        session.listen(
           (delta) {
             _setLastPointerDelta(delta);
-          },
-          onDone: () async {
-            if (widget.hidePointer) {
-              await _pointerLockPlugin.showPointer();
-            }
           },
         );
       },

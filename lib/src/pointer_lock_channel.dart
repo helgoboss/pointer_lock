@@ -59,11 +59,15 @@ class ChannelPointerLock extends PointerLockPlatform {
 
   @override
   Stream<Offset> startPointerLockSession({
-    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+    required WindowsPointerLockMode windowsMode,
+    required PointerLockCursor cursor,
   }) {
     if (Platform.isWindows) {
       switch (windowsMode) {
         case WindowsPointerLockMode.capture:
+          // With capture mode, we pass control to the platform-specific code for the length
+          // of the complete session.
+          // TODO-high CONTINUE Somehow pass cursor argument or manually hide cursor at start AND show at end of stream
           return sessionEventChannel.receiveBroadcastStream().map((event) {
             if (event == null || event is! Float64List || event.length < 2) {
               return Offset.zero;
@@ -71,15 +75,21 @@ class ChannelPointerLock extends PointerLockPlatform {
             return Offset(event[0], event[1]);
           });
         case WindowsPointerLockMode.clip:
+          // With clip mode, Dart stays in control during the session.
           subscribeToRawInputData();
-          return _synthesizePointerLockSession();
+          return _synthesizePointerLockSession(cursor: cursor);
       }
     } else {
-      return _synthesizePointerLockSession();
+      return _synthesizePointerLockSession(cursor: cursor);
     }
   }
 
-  Stream<Offset> _synthesizePointerLockSession() async* {
+  Stream<Offset> _synthesizePointerLockSession({
+    required PointerLockCursor cursor,
+  }) async* {
+    if (cursor == PointerLockCursor.hidden) {
+      await hidePointer();
+    }
     await lockPointer();
     await for (final packet in _getPointerDataPacketStream()) {
       var isMove = false;
@@ -92,6 +102,9 @@ class ChannelPointerLock extends PointerLockPlatform {
           case PointerChange.up:
             // Releasing a button is our sign for ending the session
             await unlockPointer();
+            if (cursor == PointerLockCursor.hidden) {
+              await showPointer();
+            }
             return;
           default:
         }
@@ -109,8 +122,9 @@ Stream<PointerDataPacket> _getPointerDataPacketStream() {
   void restorePreviousCallback() {
     PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
   }
+
   final controller = StreamController<PointerDataPacket>(
-      onCancel: () => restorePreviousCallback(),
+    onCancel: () => restorePreviousCallback(),
   );
   controller.onListen = () {
     PlatformDispatcher.instance.onPointerDataPacket = (packet) {

@@ -55,7 +55,8 @@ abstract class PointerLockPlatform extends PlatformInterface {
   }
 
   Stream<Offset> startPointerLockSession({
-    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+    required WindowsPointerLockMode windowsMode,
+    required PointerLockCursor cursor,
   }) {
     throw UnimplementedError('startPointerLockSession() has not been implemented.');
   }

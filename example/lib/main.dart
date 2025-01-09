@@ -1,9 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
-import 'package:pointer_lock_example/manual_example.dart';
 import 'package:pointer_lock_example/mouse_info.dart';
 
-import 'stream_example.dart';
+import 'pointer_lock_area.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,7 +19,6 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool _hidePointer = false;
-  _UsageMode _usageMode = _UsageMode.stream;
   WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
 
   @override
@@ -54,33 +54,13 @@ class _MyAppState extends State<MyApp> {
                     )
                   ],
                 ),
-                // Usage mode
-                SegmentedButton<_UsageMode>(
-                  showSelectedIcon: false,
-                  selected: {_usageMode},
-                  onSelectionChanged: (modes) {
-                    setState(() {
-                      _usageMode = modes.first;
-                    });
-                  },
-                  segments: const [
-                    ButtonSegment(
-                      value: _UsageMode.stream,
-                      label: Text("Stream usage"),
-                    ),
-                    ButtonSegment(
-                      value: _UsageMode.manual,
-                      label: Text("Manual usage"),
-                    ),
-                  ],
-                ),
                 // Windows mode
-                if (_usageMode == _UsageMode.stream)
+                if (Platform.isWindows)
                   Tooltip(
-                    message: "Windows mode should make a difference on Windows only",
+                    message: "Determines which technique is used on Windows to capture the pointer.",
                     child: Row(
                       children: [
-                        const Text("Windows mode:"),
+                        const Text("Mode:"),
                         _horizontalSpace,
                         SegmentedButton<WindowsPointerLockMode>(
                           showSelectedIcon: false,
@@ -112,10 +92,7 @@ class _MyAppState extends State<MyApp> {
                 child: Card(
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
-                  child: switch (_usageMode) {
-                    _UsageMode.manual => ManualExample(hidePointer: _hidePointer),
-                    _UsageMode.stream => StreamExample(hidePointer: _hidePointer, windowsMode: _windowsMode),
-                  },
+                  child: PointerLockArea(hidePointer: _hidePointer, windowsMode: _windowsMode),
                 ),
               ),
             ),
@@ -125,11 +102,6 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
-}
-
-enum _UsageMode {
-  manual,
-  stream,
 }
 
 const _horizontalSpace = SizedBox(width: 10);
