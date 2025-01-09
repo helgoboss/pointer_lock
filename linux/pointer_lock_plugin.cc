@@ -196,10 +196,13 @@ FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
       // obtain mouse events happening over the Flutter view, because Flutter's GTK handlers stop propagating
       // the events. It will only receive mouse events happening over the window title bar.
       // We don't want the Flutter view to process movement events anyway. It will cause weird hover
-      // events and stuff.
+      // events and stuff. Other effects of TRUE:
       //
       // If FALSE, the window will not receive any events, causing g_signal_connect to not
       // obtain any events. I think this is the way. But We need to find a way to actually get hold of the events.
+      // Other effects of FALSE:
+      //
+      // CONFINING TO WINDOW works on both X11 and Wayland (ONLY if VM cursor captured).
       bool owner_events = TRUE;
       auto result = XGrabPointer(xDisplay, window, owner_events, eventMask, GrabModeAsync, GrabModeAsync, window, xCursor, 0);
       g_object_unref(invisible_cursor);
@@ -218,6 +221,26 @@ FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
 }
 
 static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data) {
+  // TODO-high CONTINUE The challenge is to get notified of motion events while making sure that the notification
+  //  doesn't stop (or doesn't contain deltas anymore) if the mouse cursor is dragged too far. I see 2 possible
+  //  approaches:
+  //
+  //  a) Getting notified of pointer events on GTK widget, always warping back (XWarpPointer) to the initial position.
+  //     CHALLENGE: To actually get notified about the motion events. The FlView catches the events before we can.
+  //       a1) Create a new event_box, but it's difficult to place it on top of the existing event_box
+  //       as an overlay.
+  //       a2) An alternative could be to somehow get hold of the events dispatched by the FlView. Maybe
+  //       we can put ourselves into the processing chain. We for sure can hook ourselves into the chain on Dart side
+  //       by using onPointerDataPacket. But it's asynchronous.
+  //     PRO: This is how WebKit does it, for example. However, they don't have the challenge above because they have
+  //       the event listener under their control (they are not a plug-in).
+  //     CON: Warping doesn't work in Wayland, so we would need to write extra code for Wayland.
+  //
+  //  b) Creating a tiny one pixel GDK/X window at the position where the cursor lock has been requested and let XGrabPointer
+  //     confine to that area. Listen to mouse events in this window.
+  //     CHALLENGE 1: To make the window that small and have no frame AND to receive events.
+  //     CHALLENGE 2: Not sure if we get deltas if the cursor is confined to one pixel.
+  //     PRO: Would also work on Wayland (confining seems to work there).
   static double last_x = 0;
   static double last_y = 0;
   dx = event->x - last_x;
@@ -241,6 +264,7 @@ static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpoin
   }
   int warp_x = 0;
   int warp_y = 0;
+  // Warping works on X11 only, not on Wayland (but confining works on Wayland as well)!
   // Reminder: When running Linux in a VM, this only works if capturing is enabled!
   XWarpPointer(display, None, window, 0, 0, 0, 0, warp_x, warp_y);
 
