@@ -121,14 +121,28 @@ FlMethodResponse* pointer_position_on_screen(const PointerLockPlugin* plugin) {
 }
 
 FlMethodResponse* last_pointer_delta(const PointerLockPlugin* plugin) {
-  // GdkWindow* window = get_gdk_window(plugin->registrar);
-  // if (!window) {
-  //   return no_window_error();
-  // }
-  // GdkDisplay *display = gdk_window_get_display(window);
-  //// WARP TEST
-  // auto dest_window = GDK_WINDOW_XID(window);
-  // XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, 0, 0);
+  GdkWindow* window = get_gdk_window(plugin->registrar);
+  if (!window) {
+    return no_window_error();
+  }
+  GdkDisplay *display = gdk_window_get_display(window);
+  // Query delta
+  auto dest_window = GDK_WINDOW_XID(window);
+    auto* xDisplay = GDK_DISPLAY_XDISPLAY(display);
+  Window root_window = DefaultRootWindow(xDisplay);
+  Window child_window = root_window;
+  int root_x, root_y = 0;    // Mouse position relative to the root window
+  int win_x, win_y = 0;      // Mouse position relative to the target window
+  unsigned int mask = 0;
+  if (XQueryPointer(xDisplay, dest_window, &root_window, &child_window,
+                  &root_x, &root_y, &win_x, &win_y, &mask)) {
+    dx = win_x - initial_x;
+    dy = win_y - initial_y;
+                  } else {
+                    g_printerr("Failed to query pointer position\n");
+                  }
+  // Warp back to initial position
+  XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, initial_x, initial_y);
 
   return point_response(dx, dy);
 }
@@ -181,7 +195,7 @@ FlMethodResponse* set_show_pointer(const PointerLockPlugin* plugin, bool show) {
 // }
 
 FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
-    set_subscribe_to_raw_input_data(plugin, lock);
+    // set_subscribe_to_raw_input_data(plugin, lock);
     FlView* view = fl_plugin_registrar_get_view(plugin->registrar);
     GtkWindow* gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
     auto* display = gtk_widget_get_display(GTK_WIDGET(gtk_window));
@@ -190,6 +204,21 @@ FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
       GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_X_CURSOR);
       auto window = GDK_WINDOW_XID(gtk_widget_get_window(GTK_WIDGET(gtk_window)));
       auto xCursor = gdk_x11_cursor_get_xcursor(invisible_cursor);
+
+
+      Window root_window = DefaultRootWindow(xDisplay);
+      Window child_window = root_window;
+      int root_x, root_y = 0;    // Mouse position relative to the root window
+      int win_x, win_y = 0;      // Mouse position relative to the target window
+      unsigned int mask = 0;
+      if (XQueryPointer(xDisplay, window, &root_window, &child_window,
+                      &root_x, &root_y, &win_x, &win_y, &mask)) {
+          g_print("Mouse position relative to the target window: (%d, %d)\n", win_x, win_y);
+        initial_x = win_x;
+        initial_y = win_y;
+      } else {
+        g_printerr("Failed to query pointer position\n");
+      }
       int eventMask = PointerMotionMask | ButtonReleaseMask | ButtonPressMask | EnterWindowMask | LeaveWindowMask;
       XUngrabPointer(xDisplay, 0);
       // If TRUE, the window will still receive and process events, causing below g_signal_connect to not
