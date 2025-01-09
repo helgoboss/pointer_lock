@@ -24,133 +24,129 @@ double dy = 0.0;
 gulong handler_id = 0;
 
 struct _PointerLockPlugin {
-    GObject parent_instance;
-    FlPluginRegistrar *registrar;
+  GObject parent_instance;
+  FlPluginRegistrar* registrar;
 };
 
-FlMethodResponse *error(const char *code) {
-    return FL_METHOD_RESPONSE(
-        fl_method_error_response_new(code, nullptr, nullptr));
+FlMethodResponse* error(const char* code) {
+  return FL_METHOD_RESPONSE(
+      fl_method_error_response_new(code, nullptr, nullptr));
 }
 
-FlMethodResponse *no_window_error() {
-    return error("No window");
+FlMethodResponse* no_window_error() {
+  return error("No window");
 }
 
-FlMethodResponse *no_pointer_error() {
-    return error("No pointer");
+FlMethodResponse* no_pointer_error() {
+  return error("No pointer");
 }
 
-GdkWindow *get_gdk_window(FlPluginRegistrar *registrar) {
-    FlView *view = fl_plugin_registrar_get_view(registrar);
-    if (!view) {
-        return nullptr;
-    }
-    return gtk_widget_get_window(GTK_WIDGET(view));
+GdkWindow* get_gdk_window(FlPluginRegistrar* registrar) {
+  FlView* view = fl_plugin_registrar_get_view(registrar);
+  if (!view) {
+    return nullptr;
+  }
+  return gtk_widget_get_window(GTK_WIDGET(view));
 }
 
-GtkWindow *get_gtk_window(FlPluginRegistrar *registrar) {
-    FlView *view = fl_plugin_registrar_get_view(registrar);
-    if (!view) {
-        return nullptr;
-    }
-    GtkWidget* top_level_widget = gtk_widget_get_toplevel(GTK_WIDGET(view));
-    if (!GTK_IS_WINDOW(top_level_widget)) {
-        return nullptr;
-    }
-    return GTK_WINDOW(top_level_widget);
+GtkWindow* get_gtk_window(FlPluginRegistrar* registrar) {
+  FlView* view = fl_plugin_registrar_get_view(registrar);
+  if (!view) {
+    return nullptr;
+  }
+  return GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
 G_DEFINE_TYPE(PointerLockPlugin, pointer_lock_plugin, g_object_get_type())
 
 // Called when a method call is received from Flutter.
 static void pointer_lock_plugin_handle_method_call(
-    const PointerLockPlugin *self,
-    FlMethodCall *method_call) {
-    g_autoptr(FlMethodResponse) response = nullptr;
+    const PointerLockPlugin* self,
+    FlMethodCall* method_call) {
+  g_autoptr(FlMethodResponse) response = nullptr;
 
-    const gchar *method = fl_method_call_get_name(method_call);
+  const gchar* method = fl_method_call_get_name(method_call);
 
-    if (strcmp(method, "hidePointer") == 0) {
-        response = set_show_pointer(self, false);
-    } else if (strcmp(method, "showPointer") == 0) {
-        response = set_show_pointer(self, true);
-    } else if (strcmp(method, "lockPointer") == 0) {
-        response = set_lock_pointer(self, true);
-    } else if (strcmp(method, "unlockPointer") == 0) {
-        response = set_lock_pointer(self, false);
-    } else if (strcmp(method, "subscribeToRawInputData") == 0) {
-        response = set_subscribe_to_raw_input_data(self, true);
-    } else if (strcmp(method, "unsubscribeFromRawInputData") == 0) {
-        response = set_subscribe_to_raw_input_data(self, false);
-    } else if (strcmp(method, "lastPointerDelta") == 0) {
-        response = last_pointer_delta(self);
-    } else if (strcmp(method, "pointerPositionOnScreen") == 0) {
-        response = pointer_position_on_screen(self);
-    } else {
-        response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
-    }
+  if (strcmp(method, "hidePointer") == 0) {
+    response = set_show_pointer(self, false);
+  } else if (strcmp(method, "showPointer") == 0) {
+    response = set_show_pointer(self, true);
+  } else if (strcmp(method, "lockPointer") == 0) {
+    response = set_lock_pointer(self, true);
+  } else if (strcmp(method, "unlockPointer") == 0) {
+    response = set_lock_pointer(self, false);
+  } else if (strcmp(method, "subscribeToRawInputData") == 0) {
+    response = set_subscribe_to_raw_input_data(self, true);
+  } else if (strcmp(method, "unsubscribeFromRawInputData") == 0) {
+    response = set_subscribe_to_raw_input_data(self, false);
+  } else if (strcmp(method, "lastPointerDelta") == 0) {
+    response = last_pointer_delta(self);
+  } else if (strcmp(method, "pointerPositionOnScreen") == 0) {
+    response = pointer_position_on_screen(self);
+  } else {
+    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+  }
 
-    fl_method_call_respond(method_call, response, nullptr);
+  fl_method_call_respond(method_call, response, nullptr);
 }
 
-FlMethodResponse *success_response() {
-    g_autoptr(FlValue) result = fl_value_new_null();
-    return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+FlMethodResponse* success_response() {
+  g_autoptr(FlValue) result = fl_value_new_null();
+  return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
-FlMethodResponse *point_response(const double x, const double y) {
-    g_autoptr(FlValue) result = fl_value_new_float_list((double[]){x, y}, 2);
-    return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+FlMethodResponse* point_response(const double x, const double y) {
+  g_autoptr(FlValue) result = fl_value_new_float_list((double[]){x, y},2);
+  return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
-FlMethodResponse *pointer_position_on_screen(const PointerLockPlugin *plugin) {
-    GdkWindow *window = get_gdk_window(plugin->registrar);
-    if (!window) {
-        return no_window_error();
-    }
-    GdkDisplay *display = gdk_window_get_display(window);
-    GdkSeat *seat = gdk_display_get_default_seat(display);
-    GdkDevice *pointer = gdk_seat_get_pointer(seat);
-    if (!pointer) {
-        return no_pointer_error();
-    }
-    int x, y;
-    gdk_device_get_position(pointer, nullptr, &x, &y);
+FlMethodResponse* pointer_position_on_screen(const PointerLockPlugin* plugin) {
+  GdkWindow* window = get_gdk_window(plugin->registrar);
+  if (!window) {
+    return no_window_error();
+  }
+  GdkDisplay *display = gdk_window_get_display(window);
+  GdkSeat *seat = gdk_display_get_default_seat(display);
+  GdkDevice *pointer = gdk_seat_get_pointer(seat);
+  if (!pointer) {
+    return no_pointer_error();
+  }
+  int x, y;
+  gdk_device_get_position(pointer, nullptr, &x, &y);
 
-    // WARP TEST
-    // auto dest_window = GDK_WINDOW_XID(window);
-    // XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, 0, 0);
-    return point_response(x, y);
+  // WARP TEST
+  // auto dest_window = GDK_WINDOW_XID(window);
+  // XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, 0, 0);
+  return point_response(x, y);
 }
 
-FlMethodResponse *last_pointer_delta(const PointerLockPlugin *plugin) {
-    // GdkWindow* window = get_gdk_window(plugin->registrar);
-    // if (!window) {
-    //   return no_window_error();
-    // }
-    // GdkDisplay *display = gdk_window_get_display(window);
-    //// WARP TEST
-    // auto dest_window = GDK_WINDOW_XID(window);
-    // XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, 0, 0);
+FlMethodResponse* last_pointer_delta(const PointerLockPlugin* plugin) {
+  // GdkWindow* window = get_gdk_window(plugin->registrar);
+  // if (!window) {
+  //   return no_window_error();
+  // }
+  // GdkDisplay *display = gdk_window_get_display(window);
+  //// WARP TEST
+  // auto dest_window = GDK_WINDOW_XID(window);
+  // XWarpPointer(GDK_DISPLAY_XDISPLAY(display), None, dest_window, 0, 0, 0, 0, 0, 0);
 
-    return point_response(dx, dy);
+  return point_response(dx, dy);
 }
 
-FlMethodResponse *set_show_pointer(const PointerLockPlugin *plugin, bool show) {
-    GdkWindow *window = get_gdk_window(plugin->registrar);
-    if (!window) {
-        return no_window_error();
-    }
-    GdkDisplay *display = gdk_window_get_display(window);
-    if (show) {
-        gdk_window_set_cursor(window, nullptr);
-    } else {
-        GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
-        gdk_window_set_cursor(window, invisible_cursor);
-        g_object_unref(invisible_cursor);
-    }
-    return success_response();
+FlMethodResponse* set_show_pointer(const PointerLockPlugin* plugin, bool show) {
+  GdkWindow* window = get_gdk_window(plugin->registrar);
+  if (!window) {
+    return no_window_error();
+  }
+  GdkDisplay *display = gdk_window_get_display(window);
+  if (show) {
+    gdk_window_set_cursor(window, nullptr);
+  } else {
+    GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
+    gdk_window_set_cursor(window, invisible_cursor);
+    g_object_unref(invisible_cursor);
+  }
+  return success_response();
 }
 
 // FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
@@ -184,156 +180,123 @@ FlMethodResponse *set_show_pointer(const PointerLockPlugin *plugin, bool show) {
 //   return success_response();
 // }
 
-void draw(GtkWidget *gtk_window, gpointer data) {
-    g_print("draw\n");
-    auto *display = gtk_widget_get_display(gtk_window);
-    auto *xDisplay = GDK_DISPLAY_XDISPLAY(display);
-    GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_X_CURSOR);
-    auto xWindow = GDK_WINDOW_XID(gtk_widget_get_window(gtk_window));
-    auto xCursor = gdk_x11_cursor_get_xcursor(invisible_cursor);
-    int eventMask = PointerMotionMask | ButtonReleaseMask | ButtonPressMask | EnterWindowMask | LeaveWindowMask;
-    XUngrabPointer(xDisplay, 0);
-    // If TRUE, the window will still receive and process events, causing below g_signal_connect to not
-    // obtain mouse events happening over the Flutter view, because Flutter's GTK handlers stop propagating
-    // the events. It will only receive mouse events happening over the window title bar.
-    // We don't want the Flutter view to process movement events anyway. It will cause weird hover
-    // events and stuff. Other effects of TRUE:
-    //
-    // If FALSE, the window will not receive any events, causing g_signal_connect to not
-    // obtain any events. I think this is the way. But We need to find a way to actually get hold of the events.
-    // Other effects of FALSE:
-    //
-    // CONFINING TO WINDOW works on both X11 and Wayland (ONLY if VM cursor captured).
-    bool owner_events = TRUE;
-    auto result = XGrabPointer(xDisplay, xWindow, owner_events, eventMask, GrabModeAsync, GrabModeAsync, xWindow,
-                               xCursor, 0);
-    g_object_unref(invisible_cursor);
-    if (result != GrabSuccess) {
-        g_print("XGrabPointer failed with %d\n", result);
-        return;
+FlMethodResponse* set_lock_pointer(const PointerLockPlugin* plugin, bool lock) {
+    set_subscribe_to_raw_input_data(plugin, lock);
+    FlView* view = fl_plugin_registrar_get_view(plugin->registrar);
+    GtkWindow* gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+    auto* display = gtk_widget_get_display(GTK_WIDGET(gtk_window));
+    auto* xDisplay = GDK_DISPLAY_XDISPLAY(display);
+    if (lock) {
+      GdkCursor *invisible_cursor = gdk_cursor_new_for_display(display, GDK_X_CURSOR);
+      auto window = GDK_WINDOW_XID(gtk_widget_get_window(GTK_WIDGET(gtk_window)));
+      auto xCursor = gdk_x11_cursor_get_xcursor(invisible_cursor);
+      int eventMask = PointerMotionMask | ButtonReleaseMask | ButtonPressMask | EnterWindowMask | LeaveWindowMask;
+      XUngrabPointer(xDisplay, 0);
+      // If TRUE, the window will still receive and process events, causing below g_signal_connect to not
+      // obtain mouse events happening over the Flutter view, because Flutter's GTK handlers stop propagating
+      // the events. It will only receive mouse events happening over the window title bar.
+      // We don't want the Flutter view to process movement events anyway. It will cause weird hover
+      // events and stuff. Other effects of TRUE:
+      //
+      // If FALSE, the window will not receive any events, causing g_signal_connect to not
+      // obtain any events. I think this is the way. But We need to find a way to actually get hold of the events.
+      // Other effects of FALSE:
+      //
+      // CONFINING TO WINDOW works on both X11 and Wayland (ONLY if VM cursor captured).
+      bool owner_events = TRUE;
+      auto result = XGrabPointer(xDisplay, window, owner_events, eventMask, GrabModeAsync, GrabModeAsync, window, xCursor, 0);
+      g_object_unref(invisible_cursor);
+      if (result != GrabSuccess) {
+        return error("XGrabPointer failed");
+      }
+      // XEvent event;
+      // while (1) {
+      //   XNextEvent(xDisplay, &event);
+      //   g_print("e\n");
+      // }
+    } else {
+      XUngrabPointer(xDisplay, 0);
     }
-    // XEvent event;
-    // while (1) {
-    //   XNextEvent(xDisplay, &event);
-    //   g_print("e\n");
-    // }
+    return success_response();
 }
 
 static gboolean on_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer data) {
-    g_print("on_motion_notify is_hint=%d x_root=%f y_root=%f x=%f y=%f state=%d\n", event->is_hint, event->x_root, event->y_root, event->x, event->y, event->state);
-    // TODO-high CONTINUE The challenge is to get notified of motion events while making sure that the notification
-    //  doesn't stop (or doesn't contain deltas anymore) if the mouse cursor is dragged too far. I see 2 possible
-    //  approaches:
-    //
-    //  a) Getting notified of pointer events on GTK widget, always warping back (XWarpPointer) to the initial position.
-    //     CHALLENGE: To actually get notified about the motion events. The FlView catches the events before we can.
-    //       a1) Create a new event_box, but it's difficult to place it on top of the existing event_box
-    //       as an overlay.
-    //       a2) An alternative could be to somehow get hold of the events dispatched by the FlView. Maybe
-    //       we can put ourselves into the processing chain. We for sure can hook ourselves into the chain on Dart side
-    //       by using onPointerDataPacket. But it's asynchronous.
-    //     PRO: This is how WebKit does it, for example. However, they don't have the challenge above because they have
-    //       the event listener under their control (they are not a plug-in).
-    //     CON: Warping doesn't work in Wayland, so we would need to write extra code for Wayland.
-    //
-    //  b) Creating a tiny one pixel GDK/X window at the position where the cursor lock has been requested and let XGrabPointer
-    //     confine to that area. Listen to mouse events in this window.
-    //     CHALLENGE 1: To make the window that small and have no frame AND to receive events.
-    //     CHALLENGE 2: Not sure if we get deltas if the cursor is confined to one pixel. => THAT'S THE PROBLEM :(
-    //     PRO: Would also work on Wayland (confining seems to work there).
-    //
-    //     => Unfortunately, deltas are not reported anymore when hitting the borders of the confined area :(
-    static double last_x = 0;
-    static double last_y = 0;
-    dx = event->x - last_x;
-    dy = event->y - last_y;
-    last_x = event->x;
-    last_y = event->y;
+  // TODO-high CONTINUE The challenge is to get notified of motion events while making sure that the notification
+  //  doesn't stop (or doesn't contain deltas anymore) if the mouse cursor is dragged too far. I see 2 possible
+  //  approaches:
+  //
+  //  a) Getting notified of pointer events on GTK widget, always warping back (XWarpPointer) to the initial position.
+  //     CHALLENGE: To actually get notified about the motion events. The FlView catches the events before we can.
+  //       a1) Create a new event_box, but it's difficult to place it on top of the existing event_box
+  //       as an overlay.
+  //       a2) An alternative could be to somehow get hold of the events dispatched by the FlView. Maybe
+  //       we can put ourselves into the processing chain. We for sure can hook ourselves into the chain on Dart side
+  //       by using onPointerDataPacket. But it's asynchronous.
+  //     PRO: This is how WebKit does it, for example. However, they don't have the challenge above because they have
+  //       the event listener under their control (they are not a plug-in).
+  //     CON: Warping doesn't work in Wayland, so we would need to write extra code for Wayland.
+  //
+  //  b) Creating a tiny one pixel GDK/X window at the position where the cursor lock has been requested and let XGrabPointer
+  //     confine to that area. Listen to mouse events in this window.
+  //     CHALLENGE 1: To make the window that small and have no frame AND to receive events.
+  //     CHALLENGE 2: Not sure if we get deltas if the cursor is confined to one pixel.
+  //     PRO: Would also work on Wayland (confining seems to work there).
+  static double last_x = 0;
+  static double last_y = 0;
+  dx = event->x - last_x;
+  dy = event->y - last_y;
+  last_x = event->x;
+  last_y = event->y;
 
-    // Actual
-    // if (dx == 0 && dy == 0) {
-    //   return GDK_EVENT_STOP;
-    // }
-    g_print("Mouse delta: dx=%.2f, dy=%.2f\n", dx, dy);
-    // auto *display = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(widget));
-    // auto window = GDK_WINDOW_XID(gtk_widget_get_window(widget));
-    // float scaleFactor = m_webPage.deviceScaleFactor();
-    // IntSize warp = delta;
-    // warp.scale(-scaleFactor);
-    // if (!display) {
-    //     g_print("couldn't get X display");
-    //     return GDK_EVENT_STOP;
-    // }
-    // int warp_x = 0;
-    // int warp_y = 0;
-    // Warping works on X11 only, not on Wayland (but confining works on Wayland as well)!
-    // Reminder: When running Linux in a VM, this only works if capturing is enabled!
-    // XWarpPointer(display, None, window, 0, 0, 0, 0, warp_x, warp_y);
-
+  // Actual
+  // if (dx == 0 && dy == 0) {
+  //   return GDK_EVENT_STOP;
+  // }
+  g_print("Mouse delta: dx=%.2f, dy=%.2f\n", dx, dy);
+  auto* display = GDK_DISPLAY_XDISPLAY(gtk_widget_get_display(widget));
+  auto window = GDK_WINDOW_XID(gtk_widget_get_window(widget));
+  // float scaleFactor = m_webPage.deviceScaleFactor();
+  // IntSize warp = delta;
+  // warp.scale(-scaleFactor);
+  if (!display) {
+    g_print("couldn't get X display");
     return GDK_EVENT_STOP;
+  }
+  int warp_x = 0;
+  int warp_y = 0;
+  // Warping works on X11 only, not on Wayland (but confining works on Wayland as well)!
+  // Reminder: When running Linux in a VM, this only works if capturing is enabled!
+  XWarpPointer(display, None, window, 0, 0, 0, 0, warp_x, warp_y);
+
+  return GDK_EVENT_STOP;
 }
 
-FlMethodResponse *set_lock_pointer(const PointerLockPlugin *plugin, bool lock) {
-    if (lock) {
-        GtkWindow* plugin_gtk_window = get_gtk_window(plugin->registrar);
-        if (!plugin_gtk_window) {
-            return no_window_error();
-        }
-        GtkWidget *gtk_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_position(GTK_WINDOW(gtk_window), GTK_WIN_POS_CENTER_ON_PARENT);
-        gtk_window_set_transient_for(GTK_WINDOW(gtk_window), plugin_gtk_window);
+FlMethodResponse* set_subscribe_to_raw_input_data(const PointerLockPlugin* plugin, bool subscribe) {
+  FlView* view = fl_plugin_registrar_get_view(plugin->registrar);
+  if (!view) {
+    return no_window_error();
+  }
+  if (subscribe && handler_id == 0) {
+    g_print("connect\n");
+    GtkWindow* gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+    // GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(view));
+    //
+    // This can be called with gtk_window or with view (both widgets). Both reach the title bar only because
+    // Flutter consumes the events already.
+    gtk_widget_add_events(GTK_WIDGET(gtk_window), GDK_POINTER_MOTION_MASK);
 
-        // Remove decorations (frame)
-        gtk_window_set_decorated(GTK_WINDOW(gtk_window), FALSE);
+    // This can be called with gtk_window (works) and view (doesn't work).
+    handler_id = g_signal_connect(gtk_window, "motion-notify-event", G_CALLBACK(on_motion_notify), NULL);
 
-        // Set the window size to 1x1 pixel
-        gtk_window_set_default_size(GTK_WINDOW(gtk_window), 10, 10);
-
-        // Make the window non-resizable
-        gtk_window_set_resizable(GTK_WINDOW(gtk_window), FALSE);
-
-        // Show the window
-        g_signal_connect(gtk_window, "draw", G_CALLBACK(draw), NULL);
-
-        // Subscribe to motion events
-        gtk_widget_add_events(GTK_WIDGET(gtk_window), GDK_POINTER_MOTION_MASK);
-        // This can be called with gtk_window (works) and view (doesn't work).
-        handler_id = g_signal_connect(gtk_window, "motion-notify-event", G_CALLBACK(on_motion_notify), NULL);
-        gtk_widget_show(gtk_window);
-    } else {
-        // XUngrabPointer(xDisplay, 0);
+    if (handler_id == 0) {
+      return error("g_signal_connect failed");
     }
-    return success_response();
-}
-
-
-
-FlMethodResponse *set_subscribe_to_raw_input_data(const PointerLockPlugin *plugin, bool subscribe) {
-    FlView *view = fl_plugin_registrar_get_view(plugin->registrar);
-    if (!view) {
-        return no_window_error();
-    }
-    if (subscribe && handler_id == 0) {
-        g_print("connect\n");
-        GtkWindow *gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
-        // GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(view));
-        //
-        // This can be called with gtk_window or with view (both widgets). Both reach the title bar only because
-        // Flutter consumes the events already.
-        gtk_widget_add_events(GTK_WIDGET(gtk_window), GDK_POINTER_MOTION_MASK);
-
-        // This can be called with gtk_window (works) and view (doesn't work).
-        handler_id = g_signal_connect(gtk_window, "motion-notify-event", G_CALLBACK(on_motion_notify), NULL);
-
-        if (handler_id == 0) {
-            return error("g_signal_connect failed");
-        }
-    } else if (handler_id != 0) {
-        g_print("disconnect\n");
-        g_signal_handler_disconnect(view, handler_id);
-        handler_id = 0;
-    }
-    return success_response();
+  } else if (handler_id != 0) {
+    g_print("disconnect\n");
+    g_signal_handler_disconnect(view, handler_id);
+    handler_id = 0;
+  }
+  return success_response();
 }
 
 // FlMethodResponse* set_subscribe_to_raw_input_data(const PointerLockPlugin* plugin, bool subscribe) {
@@ -372,37 +335,36 @@ FlMethodResponse *set_subscribe_to_raw_input_data(const PointerLockPlugin *plugi
 //   return success_response();
 // }
 
-static void pointer_lock_plugin_dispose(GObject *object) {
-    G_OBJECT_CLASS(pointer_lock_plugin_parent_class)->dispose(object);
+static void pointer_lock_plugin_dispose(GObject* object) {
+  G_OBJECT_CLASS(pointer_lock_plugin_parent_class)->dispose(object);
 }
 
-static void pointer_lock_plugin_class_init(PointerLockPluginClass *klass) {
-    G_OBJECT_CLASS(klass)->dispose = pointer_lock_plugin_dispose;
+static void pointer_lock_plugin_class_init(PointerLockPluginClass* klass) {
+  G_OBJECT_CLASS(klass)->dispose = pointer_lock_plugin_dispose;
 }
 
-static void pointer_lock_plugin_init(PointerLockPlugin *self) {
-}
+static void pointer_lock_plugin_init(PointerLockPlugin* self) {}
 
-static void method_call_cb(FlMethodChannel *channel, FlMethodCall *method_call,
+static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
                            gpointer user_data) {
-    PointerLockPlugin *plugin = POINTER_LOCK_PLUGIN(user_data);
-    pointer_lock_plugin_handle_method_call(plugin, method_call);
+  PointerLockPlugin* plugin = POINTER_LOCK_PLUGIN(user_data);
+  pointer_lock_plugin_handle_method_call(plugin, method_call);
 }
 
-void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar *registrar) {
-    PointerLockPlugin *plugin = POINTER_LOCK_PLUGIN(
-        g_object_new(pointer_lock_plugin_get_type(), nullptr));
-    plugin->registrar = FL_PLUGIN_REGISTRAR(g_object_ref(registrar));
-    g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-    g_autoptr(FlMethodChannel) channel =
-            fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),
-                                  "pointer_lock",
-                                  FL_METHOD_CODEC(codec));
-    fl_method_channel_set_method_call_handler(channel, method_call_cb,
-                                              g_object_ref(plugin),
-                                              g_object_unref);
+void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
+  PointerLockPlugin* plugin = POINTER_LOCK_PLUGIN(
+      g_object_new(pointer_lock_plugin_get_type(), nullptr));
+  plugin->registrar = FL_PLUGIN_REGISTRAR(g_object_ref(registrar));
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  g_autoptr(FlMethodChannel) channel =
+      fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),
+                            "pointer_lock",
+                            FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(channel, method_call_cb,
+                                            g_object_ref(plugin),
+                                            g_object_unref);
 
-    g_object_unref(plugin);
+  g_object_unref(plugin);
 }
 
 // bool PointerLockManagerX11::lock()
