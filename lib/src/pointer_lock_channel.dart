@@ -18,41 +18,6 @@ class ChannelPointerLock extends PointerLockPlatform {
   final sessionEventChannel = const EventChannel('pointer_lock_session');
 
   @override
-  Future<void> lockPointer() {
-    return methodChannel.invokeMethod<void>('lockPointer');
-  }
-
-  @override
-  Future<void> unlockPointer() {
-    return methodChannel.invokeMethod<void>('unlockPointer');
-  }
-
-  @override
-  Future<void> showPointer() {
-    return methodChannel.invokeMethod<void>('showPointer');
-  }
-
-  @override
-  Future<void> hidePointer() {
-    return methodChannel.invokeMethod<void>('hidePointer');
-  }
-
-  @override
-  Future<void> subscribeToRawInputData() async {
-    if (!Platform.isWindows) {
-      return;
-    }
-    return methodChannel.invokeMethod<void>('subscribeToRawInputData');
-  }
-
-  @override
-  Future<Offset> lastPointerDelta() async {
-    final list =
-        await methodChannel.invokeListMethod<double>('lastPointerDelta');
-    return _convertListToOffset(list);
-  }
-
-  @override
   Future<Offset> pointerPositionOnScreen() async {
     final list =
         await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
@@ -60,95 +25,112 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Stream<Offset> startPointerLockSession({
+  Stream<Offset> createSession({
     required WindowsPointerLockMode windowsMode,
     required PointerLockCursor cursor,
   }) {
-    if (Platform.isWindows) {
-      switch (windowsMode) {
-        case WindowsPointerLockMode.capture:
-          // With capture mode, we pass control to the platform-specific code for the length
-          // of the complete session.
-          return _startCaptureSession(cursor);
-        case WindowsPointerLockMode.clip:
-          // With clip mode, Dart stays in control during the session.
-          subscribeToRawInputData();
-          return _startNormalSession(cursor: cursor);
-      }
-    } else {
-      return _startNormalSession(cursor: cursor);
-    }
+    return _decorateRawStream(
+      cursor: cursor,
+      rawStream:
+          Platform.isWindows && windowsMode == WindowsPointerLockMode.capture
+              ? _createRawCaptureStream()
+              : _createRawNormalStream(),
+    );
   }
 
-  Stream<Offset> _startNormalSession({
+  /// Decorates the given raw stream with hide/show cursor logic.
+  Stream<Offset> _decorateRawStream({
     required PointerLockCursor cursor,
-  }) async* {
-    if (cursor == PointerLockCursor.hidden) {
-      await hidePointer();
-    }
-    await lockPointer();
-    await for (final packet in _getPointerDataPacketStream()) {
-      var isMove = false;
-      for (final data in packet.data) {
-        switch (data.change) {
-          case PointerChange.move:
-            // We must not stop the search for other events here!
-            // Otherwise we risk missing the pointer-up event.
-            isMove = true;
-          case PointerChange.up:
-            // Releasing a button is our sign for ending the session
-            await unlockPointer();
-            if (cursor == PointerLockCursor.hidden) {
-              await showPointer();
-            }
-            return;
-          default:
-        }
+    required Stream<Offset> rawStream,
+  }) {
+    final controller = StreamController<Offset>();
+    StreamSubscription<Offset>? rawStreamSubscription;
+    controller.onListen = () async {
+      if (cursor == PointerLockCursor.hidden) {
+        await _hidePointer();
       }
-      if (isMove) {
-        yield await lastPointerDelta();
+      // Reacting to onDone is not necessary because the raw stream is infinite
+      rawStreamSubscription = rawStream.listen(
+        controller.add,
+        cancelOnError: false,
+        onError: (Object error) => controller.addError(error),
+      );
+    };
+    controller.onCancel = () async {
+      await rawStreamSubscription?.cancel();
+    };
+    controller.done.whenComplete(() async {
+      if (cursor == PointerLockCursor.hidden) {
+        await _showPointer();
       }
-    }
+    });
+    return controller.stream;
   }
-  Stream<Offset> _startCaptureSession(PointerLockCursor cursor) async* {
+
+  /// Taps pointer events from the usual Flutter processing, emitting them as a stream.
+  Stream<Offset> _createRawNormalStream() {
+    final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
+    final controller = StreamController<Offset>();
+    controller.onListen = () async {
+      await _subscribeToRawInputData();
+      await _lockPointer();
+      PlatformDispatcher.instance.onPointerDataPacket = (packet) async {
+        final isMove = packet.data.any((d) => d.change == PointerChange.move);
+        if (isMove) {
+          final delta = await _lastPointerDelta();
+          controller.add(delta);
+        }
+        previousCallback(packet);
+      };
+    };
+    controller.done.whenComplete(() async {
+      PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
+      await _unlockPointer();
+    });
+    return controller.stream;
+  }
+
+  Stream<Offset> _createRawCaptureStream() {
     Offset convertEventToOffset(dynamic event) {
       if (event == null || event is! Float64List || event.length < 2) {
         return Offset.zero;
       }
       return Offset(event[0], event[1]);
     }
-    if (cursor == PointerLockCursor.hidden) {
-      await hidePointer();
-    }
-    final originalStream = sessionEventChannel
+
+    return sessionEventChannel
         .receiveBroadcastStream()
         .map(convertEventToOffset);
-    await for (final value in originalStream) {
-      yield value;
-    }
-    if (cursor == PointerLockCursor.hidden) {
-      await showPointer();
-    }
-  }
-}
-
-/// Taps pointer events from the usual Flutter processing, emitting them as a stream.
-Stream<PointerDataPacket> _getPointerDataPacketStream() {
-  final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
-  void restorePreviousCallback() {
-    PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
   }
 
-  final controller = StreamController<PointerDataPacket>(
-    onCancel: () => restorePreviousCallback(),
-  );
-  controller.onListen = () {
-    PlatformDispatcher.instance.onPointerDataPacket = (packet) {
-      previousCallback(packet);
-      controller.add(packet);
-    };
-  };
-  return controller.stream;
+  Future<void> _lockPointer() {
+    return methodChannel.invokeMethod<void>('lockPointer');
+  }
+
+  Future<void> _unlockPointer() {
+    return methodChannel.invokeMethod<void>('unlockPointer');
+  }
+
+  Future<void> _showPointer() {
+    return methodChannel.invokeMethod<void>('showPointer');
+  }
+
+  Future<void> _hidePointer() {
+    return methodChannel.invokeMethod<void>('hidePointer');
+  }
+
+  Future<void> _subscribeToRawInputData() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+    return methodChannel.invokeMethod<void>('subscribeToRawInputData');
+  }
+
+  Future<Offset> _lastPointerDelta() async {
+    final list =
+        await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    return _convertListToOffset(list);
+  }
 }
 
 Offset _convertListToOffset(List<double>? list) {

@@ -18,11 +18,11 @@ class PointerLock {
   /// On macOS, this uses `CGAssociateMouseAndMouseCursorPosition`. On Windows, it depends on the mode that you can pass
   /// as argument. The default one is [WindowsPointerLockMode.capture] because it doesn't come with the danger of
   /// stealing raw input focus from other parts of the application.
-  Stream<Offset> startPointerLockSession({
+  Stream<Offset> createSession({
     WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
     PointerLockCursor cursor = PointerLockCursor.hidden,
   }) {
-    return PointerLockPlatform.instance.startPointerLockSession(
+    return PointerLockPlatform.instance.createSession(
       windowsMode: windowsMode,
       cursor: cursor,
     );
@@ -39,7 +39,7 @@ enum WindowsPointerLockMode {
   /// Use `SetCapture`, `SetCursorPos` and `ReleaseCapture` to achieve pointer locking on Windows.
   ///
   /// This mode doesn't rely on raw input data and therefore doesn't come with the caveat described in
-  /// [PointerLock.subscribeToRawInputData]. However, since this approach relies on manually resetting the pointer
+  /// [PointerLock._subscribeToRawInputData]. However, since this approach relies on manually resetting the pointer
   /// position whenever the mouse moves, it's probably better to hide the pointer before starting the session,
   /// otherwise it's possible that you see the pointer moving a bit.
   ///
@@ -48,6 +48,6 @@ enum WindowsPointerLockMode {
 
   /// Use `ClipCursor`, `RegisterRawInputDevices` and `WM_INPUT` to achieve pointer locking on Windows.
   ///
-  /// This mode comes with a caveat described in [PointerLock.subscribeToRawInputData].
+  /// This mode comes with a caveat described in [PointerLock._subscribeToRawInputData].
   clip
 }

@@ -20,6 +20,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   bool _hidePointer = false;
   WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
+  SessionTrigger _sessionTrigger = SessionTrigger.drag;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +30,7 @@ class _MyAppState extends State<MyApp> {
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Try dragging the mouse in the drag area below!'),
+          title: const Text('Try some mouse interactions in the area below!'),
           centerTitle: true,
         ),
         body: Column(
@@ -39,11 +40,40 @@ class _MyAppState extends State<MyApp> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
+                Tooltip(
+                  message:
+                      "Determines how to activate and deactivate locking.",
+                  child: Row(
+                    spacing: 10,
+                    children: [
+                      const Text("Trigger:"),
+                      SegmentedButton(
+                        showSelectedIcon: false,
+                        selected: {_sessionTrigger},
+                        onSelectionChanged: (triggers) {
+                          setState(() {
+                            _sessionTrigger = triggers.first;
+                          });
+                        },
+                        segments: const [
+                          ButtonSegment(
+                            value: SessionTrigger.drag,
+                            label: Text("Drag"),
+                          ),
+                          ButtonSegment(
+                            value: SessionTrigger.clickAndEscape,
+                            label: Text("Click/Escape"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 // Hide pointer
                 Row(
+                  spacing: 10,
                   children: [
-                    const Text("Hide pointer when dragging"),
-                    _horizontalSpace,
+                    const Text("Hide pointer during lock"),
                     Switch(
                       value: _hidePointer,
                       onChanged: (value) {
@@ -57,12 +87,13 @@ class _MyAppState extends State<MyApp> {
                 // Windows mode
                 if (Platform.isWindows)
                   Tooltip(
-                    message: "Determines which technique is used on Windows to capture the pointer.",
+                    message:
+                        "Determines which technique is used on Windows to capture the pointer.",
                     child: Row(
+                      spacing: 10,
                       children: [
-                        const Text("Mode:"),
-                        _horizontalSpace,
-                        SegmentedButton<WindowsPointerLockMode>(
+                        const Text("Windows mode:"),
+                        SegmentedButton(
                           showSelectedIcon: false,
                           selected: {_windowsMode},
                           onSelectionChanged: (modes) {
@@ -92,7 +123,11 @@ class _MyAppState extends State<MyApp> {
                 child: Card(
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
-                  child: PointerLockArea(hidePointer: _hidePointer, windowsMode: _windowsMode),
+                  child: PointerLockArea(
+                    hidePointer: _hidePointer,
+                    windowsMode: _windowsMode,
+                    sessionTrigger: _sessionTrigger,
+                  ),
                 ),
               ),
             ),
@@ -103,5 +138,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
-const _horizontalSpace = SizedBox(width: 10);

@@ -18,6 +18,18 @@
 
 namespace pointer_lock {
 
+
+int print_log(const char* format, ...)
+{
+    static char s_printf_buf[1024];
+    va_list args;
+    va_start(args, format);
+    _vsnprintf_s(s_printf_buf, sizeof(s_printf_buf), format, args);
+    va_end(args);
+    OutputDebugStringA(s_printf_buf);
+    return 0;
+}
+
 // static
 void PointerLockPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
@@ -170,19 +182,9 @@ std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLoc
 }
 
 std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLockSessionStreamHandler::OnCancelInternal(const flutter::EncodableValue* arguments) {
+    print_log("End capture session\n");
   session_.reset();
   return nullptr;
-}
-
-int print_log(const char* format, ...)
-{
-  static char s_printf_buf[1024];
-  va_list args;
-  va_start(args, format);
-  _vsnprintf_s(s_printf_buf, sizeof(s_printf_buf), format, args);
-  va_end(args);
-  OutputDebugStringA(s_printf_buf);
-  return 0;
 }
 
 PointerLockSession::PointerLockSession(
@@ -191,10 +193,14 @@ PointerLockSession::PointerLockSession(
 ) : registrar_(registrar), sink_(std::move(sink)), locked_pointer_screen_pos_() {
   // Remember the current cursor position so that we can restore it on each mouse move
   GetCursorPos(&locked_pointer_screen_pos_);
-  // Listen to mouse moves and mouse button releases
-  SetCapture(GetParent(registrar_->GetView()->GetNativeWindow()));
+  // Listen to mouse moves and mouse button releases. Below delegate will receive the mouse messages only
+  // if we capture the parent of the native window. Only the delegate will receive the mouse messages,
+  // not the rest of the Flutter app.
+  HWND native_window = registrar_->GetView()->GetNativeWindow();
+  print_log("Set capture\n");
+  SetCapture(GetParent(native_window));
   proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(std::move(
-    [this](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+    [this,native_window](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) -> std::optional<LRESULT> {
       switch (message) {
       case WM_MOUSEMOVE: {
         // Restore initial cursor position (this is what actually locks the pointer).
@@ -219,22 +225,32 @@ PointerLockSession::PointerLockSession(
           static_cast<double>(x_delta),
           static_cast<double>(y_delta)
         };
+        print_log("Send mouse move delta\n");
         sink_->Success(flutter::EncodableValue(std::move(vec)));
-        return std::nullopt;
+        // We handled this message sufficiently. Any other redirection of mouse-move messages shouldn't be necessary.
+        return 0;
       }
-      case WM_LBUTTONUP:
-      case WM_RBUTTONUP: {
-        // A popular use case is to start the pointer-lock session when the user presses a mouse
-        // button down and end it on release of a button. Unfortunately, SetCapture prevents Flutter
-        // from receiving mouse events, so we can't listen to the button release on Flutter side.
-        // That's why we do it here. Sending an end-of-stream event to Flutter will trigger OnCancelInternal()
-        // and that will release the capture.  
-        // TODO Make this more flexible. I can imagine there are cases where the pointer-lock session
-        //  is not controlled by button press/release.
-        sink_->EndOfStream();
-        return std::nullopt;
-      }
+      case WM_LBUTTONDOWN: 
+      case WM_LBUTTONUP: 
+      case WM_LBUTTONDBLCLK:
+      case WM_RBUTTONDOWN: 
+      case WM_RBUTTONUP: 
+      case WM_RBUTTONDBLCLK:
+      case WM_MBUTTONDOWN: 
+      case WM_MBUTTONUP: 
+      case WM_MBUTTONDBLCLK:
+      case WM_XBUTTONDOWN: 
+      case WM_XBUTTONUP: 
+      case WM_XBUTTONDBLCLK:
+        // Redirect button clicks to the rest of the Flutter app. The consumer might be interested in stopping
+        // the pointer lock session when a mouse button is released.
+        // TODO-high CONTINUE
+        // Problem 1: When using this line with click/escape trigger mode, it will only emit events during dragging (probably a problem on Flutter side)
+        // Problem 2: When using this line with drag trigger mode, the up event will not immediately as such. Only after a click. Maybe also a problem on Flutter side.
+        // return SendMessage(native_window, message, wparam, lparam);
+        return 0;
       default:
+        // Not handled
         return std::nullopt;
       }
     }
