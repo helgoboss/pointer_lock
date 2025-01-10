@@ -75,8 +75,9 @@ class ChannelPointerLock extends PointerLockPlatform {
       await _subscribeToRawInputData();
       await _lockPointer();
       PlatformDispatcher.instance.onPointerDataPacket = (packet) async {
-        final isMove = packet.data.any((d) => d.change == PointerChange.move);
-        if (isMove) {
+        const motions = [PointerChange.move, PointerChange.hover];
+        final isMotion = packet.data.any((d) => motions.contains(d.change));
+        if (isMotion) {
           final delta = await _lastPointerDelta();
           controller.add(delta);
         }
