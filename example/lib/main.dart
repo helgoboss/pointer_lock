@@ -31,7 +31,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _hidePointer = false;
+  bool _hidePointer = true;
   WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
   SessionTrigger _sessionTrigger = SessionTrigger.drag;
 
