@@ -19,8 +19,7 @@ class ChannelPointerLock extends PointerLockPlatform {
 
   @override
   Future<Offset> pointerPositionOnScreen() async {
-    final list =
-        await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
+    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
     return _convertListToOffset(list);
   }
 
@@ -31,10 +30,7 @@ class ChannelPointerLock extends PointerLockPlatform {
   }) {
     return _decorateRawStream(
       cursor: cursor,
-      rawStream:
-          Platform.isWindows && windowsMode == WindowsPointerLockMode.capture
-              ? _createRawCaptureStream()
-              : _createRawNormalStream(),
+      rawStream: _createRawStream(windowsMode: windowsMode),
     );
   }
 
@@ -67,8 +63,10 @@ class ChannelPointerLock extends PointerLockPlatform {
     return controller.stream;
   }
 
-  /// Taps pointer events from the usual Flutter processing, emitting them as a stream.
-  Stream<Offset> _createRawNormalStream() {
+  /// Creates a Stream via Dart by tapping into the pointer events that are emitted by Flutter anyway.
+  ///
+  /// Also calls necessary platform methods for locking and unlocking the pointer.
+  Stream<Offset> _createRawStreamDart() {
     final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
     final controller = StreamController<Offset>();
     controller.onListen = () async {
@@ -91,7 +89,32 @@ class ChannelPointerLock extends PointerLockPlatform {
     return controller.stream;
   }
 
-  Stream<Offset> _createRawCaptureStream() {
+  Stream<Offset> _createRawStream({required WindowsPointerLockMode windowsMode}) {
+    if (Platform.isWindows) {
+      switch (windowsMode) {
+        case WindowsPointerLockMode.capture:
+          // Capture mode needs to be controlled from the native code because the Flutter Engine doesn't receive mouse
+          // events anymore while we are capturing them.
+          return _createRawStreamNative();
+        case WindowsPointerLockMode.clip:
+          // In clip mode, the Flutter Engine still receives mouse events, so we can control the stream from Dart.
+          return _createRawStreamDart();
+      }
+    } else if (Platform.isMacOS) {
+      // On macOS, we need to put the native code in control, otherwise we would only receive deltas while a mouse
+      // button is pressed. If the mouse button is not pressed, macOS generates mouse-move events instead of mouse-drag
+      // events. The Flutter Engine forwards mouse-move events to Dart only if the pointer coordinates change. But
+      // when doing locking the pointer via CGAssociateMouseAndMouseCursorPosition(0), the absolute coordinates don't
+      // change anymore.
+      return _createRawStreamNative();
+    } else {
+      // On Linux (at least X11, Wayland is not implemented yet), we are fine with Dart-controlled streams.
+      return _createRawStreamDart();
+    }
+  }
+
+  /// Creates a Stream that is driven by the native code.
+  Stream<Offset> _createRawStreamNative() {
     Offset convertEventToOffset(dynamic event) {
       if (event == null || event is! Float64List || event.length < 2) {
         return Offset.zero;
@@ -99,9 +122,7 @@ class ChannelPointerLock extends PointerLockPlatform {
       return Offset(event[0], event[1]);
     }
 
-    return sessionEventChannel
-        .receiveBroadcastStream()
-        .map(convertEventToOffset);
+    return sessionEventChannel.receiveBroadcastStream().map(convertEventToOffset);
   }
 
   Future<void> _lockPointer() {
@@ -128,8 +149,7 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   Future<Offset> _lastPointerDelta() async {
-    final list =
-        await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
     return _convertListToOffset(list);
   }
 }

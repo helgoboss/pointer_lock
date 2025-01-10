@@ -7,7 +7,20 @@ import 'package:pointer_lock_example/mouse_info.dart';
 import 'pointer_lock_area.dart';
 
 void main() {
+  // _debugIncomingPointerPackets();
   runApp(const MyApp());
+}
+
+// ignore: unused_element
+void _debugIncomingPointerPackets() {
+  var binding = WidgetsFlutterBinding.ensureInitialized();
+  final previousCallback = binding.platformDispatcher.onPointerDataPacket!;
+  binding.platformDispatcher.onPointerDataPacket = (packet) async {
+    for (final p in packet.data) {
+      debugPrint("${p.change}");
+    }
+    previousCallback(packet);
+  };
 }
 
 class MyApp extends StatefulWidget {

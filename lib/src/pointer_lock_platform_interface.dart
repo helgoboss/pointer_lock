@@ -34,6 +34,6 @@ abstract class PointerLockPlatform extends PlatformInterface {
     required WindowsPointerLockMode windowsMode,
     required PointerLockCursor cursor,
   }) {
-    throw UnimplementedError('startPointerLockSession() has not been implemented.');
+    throw UnimplementedError('createSession() has not been implemented.');
   }
 }
