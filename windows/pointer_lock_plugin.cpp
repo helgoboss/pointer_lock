@@ -182,9 +182,19 @@ std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLoc
 }
 
 std::unique_ptr<flutter::StreamHandlerError<flutter::EncodableValue>> PointerLockSessionStreamHandler::OnCancelInternal(const flutter::EncodableValue* arguments) {
-    print_log("End capture session\n");
+  // This clears the session object, causing its destrutor to run, which in turn releases the capture.
   session_.reset();
   return nullptr;
+}
+
+UINT find_button_down_msg(UINT button_up_msg) {
+  switch (button_up_msg) {
+    case WM_LBUTTONUP: return WM_LBUTTONDOWN;
+    case WM_RBUTTONUP: return WM_RBUTTONDOWN;
+    case WM_MBUTTONUP: return WM_MBUTTONDOWN;
+    case WM_XBUTTONUP: return WM_XBUTTONDOWN;
+    default: return 0;
+  }
 }
 
 PointerLockSession::PointerLockSession(
@@ -199,10 +209,13 @@ PointerLockSession::PointerLockSession(
   HWND native_window = registrar_->GetView()->GetNativeWindow();
   HWND parent_window = GetParent(native_window);
   SetCapture(parent_window);
+  bool moved = false;
+  bool sent_pseudo_button_down = false;
   proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(std::move(
-    [this, native_window, parent_window](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) -> std::optional<LRESULT> {
+    [this, native_window, parent_window, moved, sent_pseudo_button_down](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) mutable -> std::optional<LRESULT> {
       switch (message) {
       case WM_MOUSEMOVE: {
+        moved = true;
         // Restore initial cursor position (this is what actually locks the pointer).
         // This needs to happen synchronously, right here in the event handler. Otherwise
         // things get very flaky. If this wouldn't be the case, we could do everything on 
@@ -229,20 +242,27 @@ PointerLockSession::PointerLockSession(
         // We handled this message sufficiently. Any other redirection of mouse-move messages shouldn't be necessary.
         return 0;
       }
-      case WM_LBUTTONDOWN: 
-      case WM_LBUTTONUP: 
+      case WM_LBUTTONUP:
+      case WM_RBUTTONUP:
+      case WM_MBUTTONUP:
+      case WM_XBUTTONUP:
+      case WM_LBUTTONDOWN:
+      case WM_RBUTTONDOWN:
+      case WM_MBUTTONDOWN:
+      case WM_XBUTTONDOWN:
       case WM_LBUTTONDBLCLK:
-      case WM_RBUTTONDOWN: 
-      case WM_RBUTTONUP: 
       case WM_RBUTTONDBLCLK:
-      case WM_MBUTTONDOWN: 
-      case WM_MBUTTONUP: 
       case WM_MBUTTONDBLCLK:
-      case WM_XBUTTONDOWN: 
-      case WM_XBUTTONUP: 
       case WM_XBUTTONDBLCLK:
         // Redirect button clicks to the rest of the Flutter app. The consumer might be interested in stopping
         // the pointer lock session when a mouse button is released.
+          if (moved && !sent_pseudo_button_down) {
+              UINT button_down_msg = find_button_down_msg(message);
+              if (button_down_msg > 0) {
+                  sent_pseudo_button_down = true;
+                  SendMessage(native_window, button_down_msg, wparam, lparam);
+              }
+          }
         SendMessage(native_window, message, wparam, lparam);
         // There are situations when Flutter calls SetCapture itself, for example, when pressing the left button. We need to take SetCapture back!
         SetCapture(parent_window);
