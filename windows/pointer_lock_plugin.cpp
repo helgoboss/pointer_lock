@@ -211,7 +211,7 @@ namespace pointer_lock {
 		// Remember the current cursor position so that we can restore it on each mouse move
 		GetCursorPos(&locked_pointer_screen_pos_);
 		// Listen to mouse moves and mouse button releases. Below delegate will receive the mouse messages only
-		// if we capture the parent of the native window. Only the delegate will receive the mouse messages,
+		// if we capture the **parent** of the native window. Only the delegate will receive the mouse messages,
 		// not the rest of the Flutter app.
 		HWND native_window = registrar_->GetView()->GetNativeWindow();
 		HWND parent_window = GetParent(native_window);
@@ -238,7 +238,7 @@ namespace pointer_lock {
 					int x_delta = x - locked_pointer_window_pos.x;
 					int y_delta = y - locked_pointer_window_pos.y;
 					if (x_delta == 0 && y_delta == 0) {
-						return std::nullopt;
+						return 0;
 					}
 					// Send mouse move delta to Flutter
 					std::vector<double> vec{
@@ -246,7 +246,7 @@ namespace pointer_lock {
 					  static_cast<double>(y_delta)
 					};
 					sink_->Success(flutter::EncodableValue(std::move(vec)));
-					// We handled this message sufficiently. Any other redirection of mouse-move messages shouldn't be necessary.
+					// We handled this message sufficiently. Any other redirection of mouse-move messages would just complicate things.
 					return 0;
 				}
 				case WM_LBUTTONUP:
@@ -261,8 +261,13 @@ namespace pointer_lock {
 				case WM_RBUTTONDBLCLK:
 				case WM_MBUTTONDBLCLK:
 				case WM_XBUTTONDBLCLK:
-					// Redirect button clicks to the rest of the Flutter app. The consumer might be interested in stopping
-					// the pointer lock session when a mouse button is released.
+					// We want to forward button clicks to the rest of the Flutter app. The Dart code might be interested in them.
+					// There's a corner case that is relevant for the "release pointer lock after dragging" use case. As soon as the pointer
+					// moves while SetCapture is set, Flutter emits a pointer-cancel and pointer-remove event (probably indicating to Dart that the
+					// pointer is not connected to the original window anymore). As a consequence, the first button-up event after the move will just result
+					// in a pointer-add event to be emitted. In order to submit it as a complete event, we synthesize a corresponding button-down event
+					// and send it directly before forwarding the button-up event. Yes, this results in a complete click at Dart side, but it works
+					// for most cases and I don't know any better alternative.
 					if (moved && !sent_pseudo_button_down) {
 						UINT button_down_msg = find_button_down_msg(message);
 						if (button_down_msg > 0) {
@@ -270,6 +275,7 @@ namespace pointer_lock {
 							SendMessage(native_window, button_down_msg, wparam, lparam);
 						}
 					}
+					// Forward the actual message
 					SendMessage(native_window, message, wparam, lparam);
 					// There are situations when Flutter calls SetCapture itself, for example, when pressing the left button. We need to take SetCapture back!
 					SetCapture(parent_window);
