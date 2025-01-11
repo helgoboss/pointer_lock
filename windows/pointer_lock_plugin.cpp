@@ -197,10 +197,10 @@ PointerLockSession::PointerLockSession(
   // if we capture the parent of the native window. Only the delegate will receive the mouse messages,
   // not the rest of the Flutter app.
   HWND native_window = registrar_->GetView()->GetNativeWindow();
-  print_log("Set capture\n");
-  SetCapture(GetParent(native_window));
+  HWND parent_window = GetParent(native_window);
+  SetCapture(parent_window);
   proc_id_ = registrar_->RegisterTopLevelWindowProcDelegate(std::move(
-    [this,native_window](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) -> std::optional<LRESULT> {
+    [this, native_window, parent_window](HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) -> std::optional<LRESULT> {
       switch (message) {
       case WM_MOUSEMOVE: {
         // Restore initial cursor position (this is what actually locks the pointer).
@@ -225,7 +225,6 @@ PointerLockSession::PointerLockSession(
           static_cast<double>(x_delta),
           static_cast<double>(y_delta)
         };
-        print_log("Send mouse move delta\n");
         sink_->Success(flutter::EncodableValue(std::move(vec)));
         // We handled this message sufficiently. Any other redirection of mouse-move messages shouldn't be necessary.
         return 0;
@@ -244,10 +243,9 @@ PointerLockSession::PointerLockSession(
       case WM_XBUTTONDBLCLK:
         // Redirect button clicks to the rest of the Flutter app. The consumer might be interested in stopping
         // the pointer lock session when a mouse button is released.
-        // TODO-high CONTINUE
-        // Problem 1: When using this line with click/escape trigger mode, it will only emit events during dragging (probably a problem on Flutter side)
-        // Problem 2: When using this line with drag trigger mode, the up event will not immediately as such. Only after a click. Maybe also a problem on Flutter side.
-        // return SendMessage(native_window, message, wparam, lparam);
+        SendMessage(native_window, message, wparam, lparam);
+        // There are situations when Flutter calls SetCapture itself, for example, when pressing the left button. We need to take SetCapture back!
+        SetCapture(parent_window);
         return 0;
       default:
         // Not handled
