@@ -26,11 +26,11 @@ class _DragExampleState extends State<DragExample> {
     return PointerLockDragArea(
       cursor: widget.cursor,
       windowsMode: widget.windowsMode,
-      onStart: (_) => _setDragging(true),
-      onUpdate: (details) {
+      onLock: (_) => _setDragging(true),
+      onMove: (details) {
         _setLastPointerDelta(details.move.delta);
       },
-      onEnd: (_) => _setDragging(false),
+      onUnlock: (_) => _setDragging(false),
       child: switch (_dragging) {
         false => Center(
             child: Text(

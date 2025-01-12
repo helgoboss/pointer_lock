@@ -4,24 +4,41 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'pointer_lock.dart';
 
+/// A widget that locks the pointer when you press a mouse button and unlocks it as soon as you release it.
+///
+/// This is useful as a basic building block for widgets such as knobs, drag fields and zoom controls.
 class PointerLockDragArea extends StatefulWidget {
+  /// Which cursor to display while the pointer is locked.
   final PointerLockCursor cursor;
+
+  /// Which pointer locking approach to use on Windows (doesn't affect other platforms).
   final PointerLockWindowsMode windowsMode;
 
+  /// This is called when receiving a pointer-down event and lets you decide whether you want to lock the pointer or
+  /// not, based on that event. By default, the widget locks the pointer only if the primary button is pressed.
   final bool Function(PointerLockDragAcceptDetails details) accept;
-  final void Function(PointerLockDragStartDetails details)? onStart;
-  final void Function(PointerLockDragUpdateDetails details)? onUpdate;
-  final void Function(PointerLockDragEndDetails details)? onEnd;
+
+  /// This is called when locking the pointer (after the trigger button has been pressed and accepted).
+  final void Function(PointerLockDragLockDetails details)? onLock;
+
+  /// This is called whenever you move the pointer. If not set, pointer locking is disabled.
+  final void Function(PointerLockDragMoveDetails details)? onMove;
+
+  /// This is called when unlocking the pointer (after the trigger button has been released).
+  final void Function(PointerLockDragUnlockDetails details)? onUnlock;
+
+  /// The child widget. The effective size of the child widget determines the area in which the drag takes place.
   final Widget child;
 
+  /// Creates the drag area.
   const PointerLockDragArea({
     super.key,
     this.cursor = PointerLockCursor.hidden,
     this.windowsMode = PointerLockWindowsMode.capture,
     this.accept = _acceptDefault,
-    this.onStart,
-    this.onUpdate,
-    this.onEnd,
+    this.onLock,
+    this.onMove,
+    this.onUnlock,
     required this.child,
   });
 
@@ -29,29 +46,34 @@ class PointerLockDragArea extends StatefulWidget {
   State<PointerLockDragArea> createState() => _PointerLockDragAreaState();
 }
 
-class PointerLockDragUpdateDetails {
+class PointerLockDragMoveDetails {
+  /// The pointer-down event which triggered the pointer-lock session.
   final PointerDownEvent trigger;
+  /// The event containing information about this pointer move.
   final PointerLockMoveEvent move;
 
-  PointerLockDragUpdateDetails({required this.trigger, required this.move});
+  PointerLockDragMoveDetails({required this.trigger, required this.move});
 }
 
-class PointerLockDragStartDetails {
+class PointerLockDragLockDetails {
+  /// The pointer-down event which triggered the pointer-lock session.
   final PointerDownEvent trigger;
 
-  PointerLockDragStartDetails({required this.trigger});
+  PointerLockDragLockDetails({required this.trigger});
 }
 
 class PointerLockDragAcceptDetails {
+  /// The pointer-down event which triggered the pointer-lock session.
   final PointerDownEvent trigger;
 
   PointerLockDragAcceptDetails({required this.trigger});
 }
 
-class PointerLockDragEndDetails {
+class PointerLockDragUnlockDetails {
+  /// The pointer-down event which triggered the pointer-lock session.
   final PointerDownEvent trigger;
 
-  PointerLockDragEndDetails({required this.trigger});
+  PointerLockDragUnlockDetails({required this.trigger});
 }
 
 bool _acceptDefault(PointerLockDragAcceptDetails details) {
@@ -65,7 +87,7 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: widget.onUpdate == null ? null : (event) => _onPointerDown(event),
+      onPointerDown: widget.onMove == null ? null : (event) => _onPointerDown(event),
       onPointerUp: (event) => _onPointerUp(event),
       child: widget.child,
     );
@@ -83,11 +105,11 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
       cursor: widget.cursor,
     );
     final subscription = deltaStream.listen((event) {
-      final details = PointerLockDragUpdateDetails(trigger: downEvent, move: event);
-      widget.onUpdate?.call(details);
+      final details = PointerLockDragMoveDetails(trigger: downEvent, move: event);
+      widget.onMove?.call(details);
     });
     _session = _Session(downEvent: downEvent, subscription: subscription);
-    widget.onStart?.call(PointerLockDragStartDetails(trigger: downEvent));
+    widget.onLock?.call(PointerLockDragLockDetails(trigger: downEvent));
   }
 
   void _onPointerUp(PointerUpEvent upEvent) async {
@@ -100,7 +122,7 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
     }
     _session = null;
     session.subscription.cancel();
-    widget.onEnd?.call(PointerLockDragEndDetails(trigger: session.downEvent));
+    widget.onUnlock?.call(PointerLockDragUnlockDetails(trigger: session.downEvent));
   }
 }
 

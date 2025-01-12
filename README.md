@@ -44,7 +44,7 @@ are mouse-controlled.
 This is how it works:
 
 1. Call `pointerLock.createSession()`.
-2. When you are ready, listen to the resulting stream. This will lock pointer.
+2. When you are ready, listen to the resulting stream. This will lock the pointer.
 3. Process pointer movement events emitted from the stream.
 4. When you are done, cancel the stream. This will unlock the pointer
 

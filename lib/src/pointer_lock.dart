@@ -2,31 +2,30 @@ import 'dart:ui';
 
 import 'pointer_lock_platform_interface.dart';
 
+/// The entry point for everything related to pointer locking
 const pointerLock = PointerLock();
 
-/// Provides functions related to locking the mouse pointer to its current position. This is useful for widgets
-/// such as knobs, drag fields and zoom controls.
+/// Provides functions related to locking the pointer to its current position.
 class PointerLock {
   const PointerLock();
 
-  /// Ensures that the pointer is restored after hot restart.
+  /// Ensures that the pointer locking system is correctly initialized.
+  ///
+  /// At the moment, all this method does, is to restore the original pointer after a hot Flutter restart during app
+  /// development.
+  ///
+  /// This should ideally be called and awaited in the `main` function of the app:
+  ///
+  /// ```dart
+  /// WidgetsFlutterBinding.ensureInitialized();
+  /// await pointerLock.ensureInitialized();
+  /// runApp(const MyApp());
+  /// ```
   Future<void> ensureInitialized() {
     return PointerLockPlatform.instance.ensureInitialized();
   }
 
-  /// Returns the position of the mouse pointer in screen coordinates.
-  Future<Offset> pointerPositionOnScreen() {
-    return PointerLockPlatform.instance.pointerPositionOnScreen();
-  }
-
-  /// Locks the pointer and returns a stream of deltas as the mouse is being moved.
-  ///
-  /// The pointer lock session ends as soon as a mouse button is released. Consequently, you should start the session
-  /// in response to a `PointerDownEvent`.
-  ///
-  /// On macOS, this uses `CGAssociateMouseAndMouseCursorPosition`. On Windows, it depends on the mode that you can pass
-  /// as argument. The default one is [PointerLockWindowsMode.capture] because it doesn't come with the danger of
-  /// stealing raw input focus from other parts of the application.
+  /// Creates a stream which locks the pointer and emits pointer-move events as long as you subscribe to it.
   Stream<PointerLockMoveEvent> createSession({
     PointerLockWindowsMode windowsMode = PointerLockWindowsMode.capture,
     PointerLockCursor cursor = PointerLockCursor.hidden,
@@ -36,33 +35,76 @@ class PointerLock {
       cursor: cursor,
     );
   }
+
+  /// A utility function that returns the position of the pointer in screen coordinates.
+  Future<Offset> pointerPositionOnScreen() {
+    return PointerLockPlatform.instance.pointerPositionOnScreen();
+  }
 }
 
+/// This event is emitted whenever you move the pointer while it's locked.
 class PointerLockMoveEvent {
+  /// The amount the pointer has been dragged in the coordinate space of the event
+  /// receiver since the previous update.
   final Offset delta;
 
   PointerLockMoveEvent({required this.delta});
 }
 
+/// A selection of cursors that can be displayed while the pointer is locked.
 enum PointerLockCursor {
+  /// Displays the normal cursor.
+  ///
+  /// On most platforms, this is the cursor which was shown before the pointer was locked.
   normal,
+  /// Hides the cursor.
+  ///
+  /// This is usually preferred, because on some platforms, a visible cursor can flicker when moving
+  /// the pointer while it's locked.
   hidden,
 }
 
-/// On Windows, there are multiple ways to achieve pointer locking and each one comes with its own set of disadvantages.
+/// Different techniques to implement pointer locking on Windows.
 enum PointerLockWindowsMode {
-  /// Use `SetCapture`, `SetCursorPos` and `ReleaseCapture` to achieve pointer locking on Windows.
+  /// This technique uses `SetCapture`, `SetCursorPos` and `ReleaseCapture` to achieve pointer locking on Windows.
   ///
-  /// This mode doesn't rely on raw input data and therefore doesn't come with the caveat described in
-  /// [PointerLock._subscribeToRawInputData]. However, since this approach relies on manually resetting the pointer
-  /// position whenever the mouse moves, it's probably better to hide the pointer before starting the session,
-  /// otherwise it's possible that you see the pointer moving a bit.
+  /// Pros:
   ///
-  /// **Attention:** With this mode, Flutter will not be able to receive messages while the session is active.
+  /// - This approach doesn't rely on raw input data and therefore doesn't come with the caveats
+  ///   described in [PointerLockWindowsMode.clip].
+  ///
+  /// Cons:
+  ///
+  /// - This mode relies on manually resetting the pointer position whenever the pointer moves, so you might see the
+  ///   pointer moving a bit if you don't hide it. This is is not a big deal, since most likely you want to
+  ///   hide the cursor anyway.
+  /// - This approach can cause the Flutter Engine to emit [PointerDataPacket]s with pointer changes
+  ///   [PointerChange.cancel], [PointerChange.remove] and [PointerChange.add]. As a result, some pointer events
+  ///   such as button presses might not be correctly detected while the pointer is locked. However, we try to
+  ///   emit those events as correctly as possible on a best-effort basis.
+  ///
+  /// In most cases, the cons of this approach are neglectable, so it's the commended mode!
   capture,
 
-  /// Use `ClipCursor`, `RegisterRawInputDevices` and `WM_INPUT` to achieve pointer locking on Windows.
+  /// This technique uses `ClipCursor`, `RegisterRawInputDevices` and `WM_INPUT` to achieve pointer locking on Windows.
   ///
-  /// This mode comes with a caveat described in [PointerLock._subscribeToRawInputData].
+  /// In particular, this mode invokes the Win32 function `RegisterRawInputDevices` to make the Flutter window receive
+  /// raw input events from the pointer device. It also sets up a `WindowProcDelegate` to read the events and extract
+  /// its delta values.
+  ///
+  /// Pros:
+  ///
+  /// - This approach should not lead to visible cursor movements.
+  /// - Other pointer events such as button presses should not be influenced by it.
+  ///
+  /// Cons:
+  ///
+  /// - We have observed that pointer movements are not reported as fast as with [PointerLockWindowsMode.capture].
+  /// - `RegisterRawInputDevices` comes with a caveat, which is best described by quoting the Win32 API docs:
+  ///
+  ///   > Only one window per raw input device class may be registered to receive raw input within a process (the window
+  ///   > passed in the last call to RegisterRawInputDevices). Because of this, RegisterRawInputDevices should not be
+  ///   > used from a library, as it may interfere with any raw input processing logic already present in applications
+  ///   > that load it.
   clip
 }
