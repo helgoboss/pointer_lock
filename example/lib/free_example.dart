@@ -24,6 +24,12 @@ class _FreeExampleState extends State<FreeExample> {
   Offset _accumulation = Offset.zero;
 
   @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Listener(
         behavior: HitTestBehavior.translucent,

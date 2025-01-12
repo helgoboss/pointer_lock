@@ -86,6 +86,12 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
   _Session? _session;
 
   @override
+  void dispose() {
+    _session?.subscription.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
