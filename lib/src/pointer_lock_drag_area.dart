@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
@@ -49,6 +50,7 @@ class PointerLockDragArea extends StatefulWidget {
 class PointerLockDragMoveDetails {
   /// The pointer-down event which triggered the pointer-lock session.
   final PointerDownEvent trigger;
+
   /// The event containing information about this pointer move.
   final PointerLockMoveEvent move;
 
@@ -87,7 +89,8 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: widget.onMove == null ? null : (event) => _onPointerDown(event),
+      onPointerDown:
+          widget.onMove == null ? null : (event) => _onPointerDown(event),
       onPointerUp: (event) => _onPointerUp(event),
       child: widget.child,
     );
@@ -105,11 +108,13 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
       cursor: widget.cursor,
     );
     final subscription = deltaStream.listen((event) {
-      final details = PointerLockDragMoveDetails(trigger: downEvent, move: event);
+      final details =
+          PointerLockDragMoveDetails(trigger: downEvent, move: event);
       widget.onMove?.call(details);
     });
     _session = _Session(downEvent: downEvent, subscription: subscription);
-    widget.onLock?.call(PointerLockDragLockDetails(trigger: downEvent));
+    final details = PointerLockDragLockDetails(trigger: downEvent);
+    widget.onLock?.call(details);
   }
 
   void _onPointerUp(PointerUpEvent upEvent) async {
@@ -117,12 +122,24 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
     if (session == null) {
       return;
     }
-    if (upEvent.pointer != session.downEvent.pointer) {
+    final checkPointer = !Platform.isWindows ||
+        widget.windowsMode == PointerLockWindowsMode.clip;
+    if (checkPointer && upEvent.pointer != session.downEvent.pointer) {
+      // The up event doesn't belong to the previous down event.
+      //
+      // On Windows, we don't do that check because it's hard to figure out
+      // whether the pointer-up event belongs to the pointer-down event.
+      // When using capture mode, the pointer-up event will
+      // will be disassociated from the original pointer-down event, because
+      // SetCapture was called in-between. Instead, the pointer-up event
+      // will be associated with a synthesized pointer-down event. It's a
+      // bit hacky. Hope this can be improved in the future.
       return;
     }
     _session = null;
     session.subscription.cancel();
-    widget.onUnlock?.call(PointerLockDragUnlockDetails(trigger: session.downEvent));
+    final details = PointerLockDragUnlockDetails(trigger: session.downEvent);
+    widget.onUnlock?.call(details);
   }
 }
 
