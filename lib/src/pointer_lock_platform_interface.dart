@@ -26,8 +26,8 @@ abstract class PointerLockPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<Offset> pointerPositionOnScreen() {
-    throw UnimplementedError('pointerPositionOnScreen() has not been implemented.');
+  Future<void> ensureInitialized() {
+    throw UnimplementedError('ensureInitialized() has not been implemented.');
   }
 
   Stream<Offset> createSession({

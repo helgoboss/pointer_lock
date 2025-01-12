@@ -14,6 +14,10 @@ public class PointerLockPlugin: NSObject, FlutterPlugin {
   
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case "flutterRestart":
+      CGAssociateMouseAndMouseCursorPosition(1)
+      NSCursor.unhide()
+      result(nil)
     case "lockPointer":
       CGAssociateMouseAndMouseCursorPosition(0)
       result(nil)

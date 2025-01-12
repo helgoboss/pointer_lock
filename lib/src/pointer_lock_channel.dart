@@ -17,6 +17,17 @@ class ChannelPointerLock extends PointerLockPlatform {
   @visibleForTesting
   final sessionEventChannel = const EventChannel('pointer_lock_session');
 
+  var _initialized = false;
+
+  @override
+  Future<void> ensureInitialized() async {
+    if (_initialized) {
+      return;
+    }
+    _initialized = true;
+    await methodChannel.invokeMethod<void>('flutterRestart');
+  }
+
   @override
   Future<Offset> pointerPositionOnScreen() async {
     final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');

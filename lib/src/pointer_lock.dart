@@ -5,9 +5,11 @@ import 'pointer_lock_platform_interface.dart';
 /// Provides functions related to locking the mouse pointer to its current position. This is useful for widgets
 /// such as knobs, drag fields and zoom controls.
 class PointerLock {
-  /// Returns the position of the mouse pointer in screen coordinates.
-  Future<Offset> pointerPositionOnScreen() {
-    return PointerLockPlatform.instance.pointerPositionOnScreen();
+  const PointerLock();
+
+  /// Ensures that the pointer is restored after hot restart.
+  Future<void> ensureInitialized() {
+    return PointerLockPlatform.instance.ensureInitialized();
   }
 
   /// Locks the pointer and returns a stream of deltas as the mouse is being moved.
