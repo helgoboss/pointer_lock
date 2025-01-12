@@ -25,29 +25,39 @@ class _FreeExampleState extends State<FreeExample> {
 
   @override
   Widget build(BuildContext context) {
-    return _subscription == null
-        ? Center(
-            child: ElevatedButton(
-              onPressed: _startSession,
-              child: const Text("Lock pointer!"),
-            ),
-          )
-        : Actions(
-            actions: {
-              DismissIntent: CallbackAction(onInvoke: (intent) {
-                _stopSession();
-                return null;
-              })
-            },
-            child: Focus(
-              autofocus: true,
-              child: InfoPanel(
-                lastPointerDelta: _lastPointerDelta,
-                accumulation: _accumulation,
-                additionalText: "Unlock the pointer by pressing the Escape key!",
-              ),
-            ),
-          );
+    return Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerCancel: _debugPointerEvent,
+        onPointerDown: _debugPointerEvent,
+        onPointerUp: _debugPointerEvent,
+        onPointerPanZoomEnd: _debugPointerEvent,
+        onPointerPanZoomStart: _debugPointerEvent,
+        onPointerPanZoomUpdate: _debugPointerEvent,
+        onPointerSignal: _debugPointerEvent,
+        child: _subscription == null
+            ? Center(
+                child: ElevatedButton(
+                  onPressed: _startSession,
+                  child: const Text("Lock pointer!"),
+                ),
+              )
+            : Actions(
+                actions: {
+                  DismissIntent: CallbackAction(onInvoke: (intent) {
+                    _stopSession();
+                    return null;
+                  })
+                },
+                child: Focus(
+                  autofocus: true,
+                  child: InfoPanel(
+                    lastPointerDelta: _lastPointerDelta,
+                    accumulation: _accumulation,
+                    additionalText:
+                        "Unlock the pointer by pressing the Escape key!",
+                  ),
+                ),
+              ));
   }
 
   void _startSession() {
@@ -88,4 +98,8 @@ class _FreeExampleState extends State<FreeExample> {
       _accumulation += delta;
     });
   }
+}
+
+void _debugPointerEvent(PointerEvent evt) {
+  debugPrint(evt.toString(minLevel: DiagnosticLevel.fine));
 }
