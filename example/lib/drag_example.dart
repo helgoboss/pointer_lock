@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/info_panel.dart';
 
-class DragPanel extends StatefulWidget {
+class DragExample extends StatefulWidget {
   final PointerLockCursor cursor;
   final PointerLockWindowsMode windowsMode;
 
-  const DragPanel({
+  const DragExample({
     super.key,
     required this.cursor,
     required this.windowsMode,
   });
 
   @override
-  State<DragPanel> createState() => _DragPanelState();
+  State<DragExample> createState() => _DragExampleState();
 }
 
-class _DragPanelState extends State<DragPanel> {
+class _DragExampleState extends State<DragExample> {
   bool _dragging = false;
   Offset _lastPointerDelta = Offset.zero;
   Offset _accumulation = Offset.zero;

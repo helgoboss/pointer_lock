@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
-import 'package:pointer_lock_example/free_panel.dart';
-import 'package:pointer_lock_example/drag_panel.dart';
+import 'package:pointer_lock_example/free_example.dart';
+import 'package:pointer_lock_example/drag_example.dart';
 import 'package:pointer_lock_example/mouse_info.dart';
 
 void main() async {
@@ -140,12 +140,12 @@ class _MyAppState extends State<MyApp> {
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
                   child: switch (_mode) {
-                    _Mode.drag => DragPanel(
+                    _Mode.drag => DragExample(
                       cursor: _cursor,
                       windowsMode: _windowsMode,
                     ),
                     // TODO: Handle this case.
-                    _Mode.free => FreePanel(
+                    _Mode.free => FreeExample(
                       cursor: _cursor,
                       windowsMode: _windowsMode,
                     ),

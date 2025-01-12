@@ -1,7 +1,7 @@
 name: pointer_lock
-description: A new Flutter plugin project.
-version: 0.0.1
-homepage:
+description: Flutter plug-in that makes it possible to lock the mouse pointer to its current position
+version: 0.0.2
+homepage: https://github.com/helgoboss/pointer_lock
 
 environment:
   sdk: '>=3.1.3 <4.0.0'

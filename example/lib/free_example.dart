@@ -4,21 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/info_panel.dart';
 
-class FreePanel extends StatefulWidget {
+class FreeExample extends StatefulWidget {
   final PointerLockCursor cursor;
   final PointerLockWindowsMode windowsMode;
 
-  const FreePanel({
+  const FreeExample({
     super.key,
     required this.cursor,
     required this.windowsMode,
   });
 
   @override
-  State<FreePanel> createState() => _FreePanelState();
+  State<FreeExample> createState() => _FreeExampleState();
 }
 
-class _FreePanelState extends State<FreePanel> {
+class _FreeExampleState extends State<FreeExample> {
   StreamSubscription<PointerLockMoveEvent>? _subscription;
   Offset _lastPointerDelta = Offset.zero;
   Offset _accumulation = Offset.zero;
