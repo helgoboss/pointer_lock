@@ -39,6 +39,7 @@ class PointerLockPlugin : public flutter::Plugin {
    LONG last_x_delta_ = 0;
    LONG last_y_delta_ = 0;
 
+   void SetPointerVisible(bool visible);
    bool SubscribeToRawInputData();
    void UnsubscribeFromRawInputData();
    bool SubscribedToRawInputData();

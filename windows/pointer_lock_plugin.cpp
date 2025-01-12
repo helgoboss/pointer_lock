@@ -68,6 +68,13 @@ namespace pointer_lock {
 		const flutter::MethodCall<flutter::EncodableValue>& method_call,
 		std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
 		if (method_call.method_name().compare("flutterRestart") == 0) {
+			ClipCursor(NULL);
+			this->SetPointerVisible(true);
+			// Ideally, we would destroy an ongoing pointer lock session, which would do a bit more
+			// than releasing the capture. But since the "flutterRestart" event is intended for
+			// hot restart during development mode, I think we don't need perfection here. Releasing
+			// the capture does the job of restoring the pointer, and that's important.
+			ReleaseCapture();
 			result->Success();
 		}
 		else if (method_call.method_name().compare("pointerPositionOnScreen") == 0) {
@@ -97,17 +104,11 @@ namespace pointer_lock {
 			result->Success();
 		}
 		else if (method_call.method_name().compare("hidePointer") == 0) {
-			if (pointer_visible_) {
-				pointer_visible_ = false;
-				ShowCursor(0);
-			}
+			this->SetPointerVisible(false);
 			result->Success();
 		}
 		else if (method_call.method_name().compare("showPointer") == 0) {
-			if (!pointer_visible_) {
-				pointer_visible_ = true;
-				ShowCursor(1);
-			}
+			this->SetPointerVisible(true);
 			result->Success();
 		}
 		else if (method_call.method_name().compare("subscribeToRawInputData") == 0) {
@@ -132,6 +133,15 @@ namespace pointer_lock {
 			result->NotImplemented();
 		}
 	}
+
+	void PointerLockPlugin::SetPointerVisible(bool visible) {
+		if (visible == pointer_visible_) {
+			return;
+		}
+		pointer_visible_ = visible;
+		ShowCursor(visible);
+	}
+
 
 	bool PointerLockPlugin::SubscribeToRawInputData() {
 		if (SubscribedToRawInputData()) {
