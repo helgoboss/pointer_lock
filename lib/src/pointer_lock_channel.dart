@@ -29,12 +29,6 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Future<Offset> pointerPositionOnScreen() async {
-    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
-    return _convertListToOffset(list);
-  }
-
-  @override
   Stream<PointerLockMoveEvent> createSession({
     required PointerLockWindowsMode windowsMode,
     required PointerLockCursor cursor,
@@ -43,6 +37,22 @@ class ChannelPointerLock extends PointerLockPlatform {
       cursor: cursor,
       rawStream: _createRawStream(windowsMode: windowsMode),
     );
+  }
+
+  @override
+  Future<void> showPointer() {
+    return methodChannel.invokeMethod<void>('showPointer');
+  }
+
+  @override
+  Future<void> hidePointer() {
+    return methodChannel.invokeMethod<void>('hidePointer');
+  }
+
+  @override
+  Future<Offset> pointerPositionOnScreen() async {
+    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
+    return _convertListToOffset(list);
   }
 
   /// Decorates the given raw stream with hide/show cursor logic.

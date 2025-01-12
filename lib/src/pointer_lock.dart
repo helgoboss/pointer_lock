@@ -36,6 +36,36 @@ class PointerLock {
     );
   }
 
+  /// Hides the mouse pointer.
+  ///
+  /// Although Flutter has ways to hide the mouse pointer (via `MouseRegion` and `SystemMouseCursors.none`), it doesn't
+  /// always work nicely with pointer locking. That's why this explicit function is provided.
+  ///
+  /// Care should be taken to not call this function repeatedly because on Windows, this uses the function `ShowCursor`
+  /// which internally increments/decrements a counter to decide whether to show the pointer or not.
+  ///
+  /// Internally, this uses:
+  ///
+  /// - On Windows: `ShowCursor`
+  /// - On macOS: `NSCursor.hide`
+  /// - On Linux: `gdk_window_set_cursor`
+  Future<void> hidePointer() {
+    return PointerLockPlatform.instance.hidePointer();
+  }
+
+  /// Shows the mouse pointer.
+  ///
+  /// Care should be taken to not call this function repeatedly because on Windows, this uses the function `ShowCursor`
+  /// which internally increments/decrements a counter to decide whether to show the pointer or not.
+  ///
+  /// - On Windows: `ShowCursor`
+  /// - On macOS: `NSCursor.unhide`
+  /// - On Linux: `gdk_window_set_cursor`
+  Future<void> showPointer() {
+    return PointerLockPlatform.instance.showPointer();
+  }
+
+
   /// A utility function that returns the position of the pointer in screen coordinates.
   Future<Offset> pointerPositionOnScreen() {
     return PointerLockPlatform.instance.pointerPositionOnScreen();
