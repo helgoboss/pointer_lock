@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import '../pointer_lock.dart';
+import 'pointer_lock.dart';
 import 'pointer_lock_platform_interface.dart';
 import 'dart:io' show Platform;
 
@@ -17,38 +17,15 @@ class ChannelPointerLock extends PointerLockPlatform {
   @visibleForTesting
   final sessionEventChannel = const EventChannel('pointer_lock_session');
 
-  @override
-  Future<void> lockPointer() {
-    return methodChannel.invokeMethod<void>('lockPointer');
-  }
+  var _initialized = false;
 
   @override
-  Future<void> unlockPointer() {
-    return methodChannel.invokeMethod<void>('unlockPointer');
-  }
-
-  @override
-  Future<void> showPointer() {
-    return methodChannel.invokeMethod<void>('showPointer');
-  }
-
-  @override
-  Future<void> hidePointer() {
-    return methodChannel.invokeMethod<void>('hidePointer');
-  }
-
-  @override
-  Future<void> subscribeToRawInputData() async {
-    if (!Platform.isWindows) {
+  Future<void> ensureInitialized() async {
+    if (_initialized) {
       return;
     }
-    return methodChannel.invokeMethod<void>('subscribeToRawInputData');
-  }
-
-  @override
-  Future<Offset> lastPointerDelta() async {
-    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
-    return _convertListToOffset(list);
+    _initialized = true;
+    await methodChannel.invokeMethod<void>('flutterRestart');
   }
 
   @override
@@ -58,67 +35,137 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Stream<Offset> startPointerLockSession({
-    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+  Stream<PointerLockMoveEvent> createSession({
+    required PointerLockWindowsMode windowsMode,
+    required PointerLockCursor cursor,
   }) {
+    return _decorateRawStream(
+      cursor: cursor,
+      rawStream: _createRawStream(windowsMode: windowsMode),
+    );
+  }
+
+  /// Decorates the given raw stream with hide/show cursor logic.
+  Stream<PointerLockMoveEvent> _decorateRawStream({
+    required PointerLockCursor cursor,
+    required Stream<PointerLockMoveEvent> rawStream,
+  }) {
+    final controller = StreamController<PointerLockMoveEvent>();
+    StreamSubscription<PointerLockMoveEvent>? rawStreamSubscription;
+    controller.onListen = () async {
+      if (cursor == PointerLockCursor.hidden) {
+        await _hidePointer();
+      }
+      // Reacting to onDone is not necessary because the raw stream is infinite
+      rawStreamSubscription = rawStream.listen(
+        controller.add,
+        cancelOnError: false,
+        onError: (Object error) => controller.addError(error),
+      );
+    };
+    controller.onCancel = () async {
+      await rawStreamSubscription?.cancel();
+    };
+    controller.done.whenComplete(() async {
+      if (cursor == PointerLockCursor.hidden) {
+        await _showPointer();
+      }
+    });
+    return controller.stream;
+  }
+
+  /// Creates a Stream via Dart by tapping into the pointer events that are emitted by Flutter anyway.
+  ///
+  /// Also calls necessary platform methods for locking and unlocking the pointer.
+  Stream<PointerLockMoveEvent> _createRawStreamDart() {
+    final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
+    final controller = StreamController<PointerLockMoveEvent>();
+    controller.onListen = () async {
+      await _subscribeToRawInputData();
+      await _lockPointer();
+      PlatformDispatcher.instance.onPointerDataPacket = (packet) async {
+        const motions = [PointerChange.move, PointerChange.hover];
+        final isMotion = packet.data.any((d) => motions.contains(d.change));
+        if (isMotion) {
+          final delta = await _lastPointerDelta();
+          final event = PointerLockMoveEvent(delta: delta);
+          controller.add(event);
+        }
+        previousCallback(packet);
+      };
+    };
+    controller.done.whenComplete(() async {
+      PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
+      await _unlockPointer();
+    });
+    return controller.stream;
+  }
+
+  Stream<PointerLockMoveEvent> _createRawStream({required PointerLockWindowsMode windowsMode}) {
     if (Platform.isWindows) {
       switch (windowsMode) {
-        case WindowsPointerLockMode.capture:
-          return sessionEventChannel.receiveBroadcastStream().map((event) {
-            if (event == null || event is! Float64List || event.length < 2) {
-              return Offset.zero;
-            }
-            return Offset(event[0], event[1]);
-          });
-        case WindowsPointerLockMode.clip:
-          subscribeToRawInputData();
-          return _synthesizePointerLockSession();
+        case PointerLockWindowsMode.capture:
+          // Capture mode needs to be controlled from the native code because the Flutter Engine doesn't receive mouse
+          // events anymore while we are capturing them.
+          return _createRawStreamNative();
+        case PointerLockWindowsMode.clip:
+          // In clip mode, the Flutter Engine still receives mouse events, so we can control the stream from Dart.
+          return _createRawStreamDart();
       }
+    } else if (Platform.isMacOS) {
+      // On macOS, we need to put the native code in control, otherwise we would only receive deltas while a mouse
+      // button is pressed. If the mouse button is not pressed, macOS generates mouse-move events instead of mouse-drag
+      // events. The Flutter Engine forwards mouse-move events to Dart only if the pointer coordinates change. But
+      // when doing locking the pointer via CGAssociateMouseAndMouseCursorPosition(0), the absolute coordinates don't
+      // change anymore.
+      return _createRawStreamNative();
     } else {
-      return _synthesizePointerLockSession();
+      // On Linux (at least X11, Wayland is not implemented yet), we are fine with Dart-controlled streams.
+      return _createRawStreamDart();
     }
   }
 
-  Stream<Offset> _synthesizePointerLockSession() async* {
-    await lockPointer();
-    await for (final packet in _getPointerDataPacketStream()) {
-      var isMove = false;
-      for (final data in packet.data) {
-        switch (data.change) {
-          case PointerChange.move:
-            // We must not stop the search for other events here!
-            // Otherwise we risk missing the pointer-up event.
-            isMove = true;
-          case PointerChange.up:
-            // Releasing a button is our sign for ending the session
-            await unlockPointer();
-            return;
-          default:
-        }
+  /// Creates a Stream that is driven by the native code.
+  Stream<PointerLockMoveEvent> _createRawStreamNative() {
+    Offset convertEventToOffset(dynamic event) {
+      if (event == null || event is! Float64List || event.length < 2) {
+        return Offset.zero;
       }
-      if (isMove) {
-        yield await lastPointerDelta();
-      }
+      return Offset(event[0], event[1]);
     }
-  }
-}
 
-/// Taps pointer events from the usual Flutter processing, emitting them as a stream.
-Stream<PointerDataPacket> _getPointerDataPacketStream() {
-  final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
-  void restorePreviousCallback() {
-    PlatformDispatcher.instance.onPointerDataPacket = previousCallback;
+    return sessionEventChannel
+        .receiveBroadcastStream()
+        .map((evt) => PointerLockMoveEvent(delta: convertEventToOffset(evt)));
   }
-  final controller = StreamController<PointerDataPacket>(
-      onCancel: () => restorePreviousCallback(),
-  );
-  controller.onListen = () {
-    PlatformDispatcher.instance.onPointerDataPacket = (packet) {
-      previousCallback(packet);
-      controller.add(packet);
-    };
-  };
-  return controller.stream;
+
+  Future<void> _lockPointer() {
+    return methodChannel.invokeMethod<void>('lockPointer');
+  }
+
+  Future<void> _unlockPointer() {
+    return methodChannel.invokeMethod<void>('unlockPointer');
+  }
+
+  Future<void> _showPointer() {
+    return methodChannel.invokeMethod<void>('showPointer');
+  }
+
+  Future<void> _hidePointer() {
+    return methodChannel.invokeMethod<void>('hidePointer');
+  }
+
+  Future<void> _subscribeToRawInputData() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+    return methodChannel.invokeMethod<void>('subscribeToRawInputData');
+  }
+
+  Future<Offset> _lastPointerDelta() async {
+    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    return _convertListToOffset(list);
+  }
 }
 
 Offset _convertListToOffset(List<double>? list) {
@@ -127,3 +174,4 @@ Offset _convertListToOffset(List<double>? list) {
   }
   return Offset(list[0], list[1]);
 }
+

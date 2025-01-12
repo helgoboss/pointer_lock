@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import '../pointer_lock.dart';
+import 'pointer_lock.dart';
 import 'pointer_lock_channel.dart';
 
 abstract class PointerLockPlatform extends PlatformInterface {
@@ -26,37 +26,18 @@ abstract class PointerLockPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<void> lockPointer() {
-    throw UnimplementedError('lockPointer() has not been implemented.');
-  }
-
-  Future<void> unlockPointer() {
-    throw UnimplementedError('unlockPointer() has not been implemented.');
-  }
-
-  Future<void> hidePointer() {
-    throw UnimplementedError('hidePointer() has not been implemented.');
-  }
-
-  Future<void> showPointer() {
-    throw UnimplementedError('showPointer() has not been implemented.');
-  }
-
-  Future<void> subscribeToRawInputData() {
-    throw UnimplementedError('subscribeToRawInputData() has not been implemented.');
-  }
-
-  Future<Offset> lastPointerDelta() {
-    throw UnimplementedError('lastPointerDelta() has not been implemented.');
+  Future<void> ensureInitialized() {
+    throw UnimplementedError('ensureInitialized() has not been implemented.');
   }
 
   Future<Offset> pointerPositionOnScreen() {
     throw UnimplementedError('pointerPositionOnScreen() has not been implemented.');
   }
 
-  Stream<Offset> startPointerLockSession({
-    WindowsPointerLockMode windowsMode = WindowsPointerLockMode.capture,
+  Stream<PointerLockMoveEvent> createSession({
+    required PointerLockWindowsMode windowsMode,
+    required PointerLockCursor cursor,
   }) {
-    throw UnimplementedError('startPointerLockSession() has not been implemented.');
+    throw UnimplementedError('createSession() has not been implemented.');
   }
 }

@@ -1,12 +1,29 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
-import 'package:pointer_lock_example/manual_example.dart';
+import 'package:pointer_lock_example/free_example.dart';
+import 'package:pointer_lock_example/drag_example.dart';
 import 'package:pointer_lock_example/mouse_info.dart';
 
-import 'stream_example.dart';
-
-void main() {
+void main() async {
+  // This initializes binary messengers etc. Important to execute before doing method channel things.
+  WidgetsFlutterBinding.ensureInitialized();
+  await pointerLock.ensureInitialized();
+  // _debugIncomingPointerPackets();
   runApp(const MyApp());
+}
+
+// ignore: unused_element
+void _debugIncomingPointerPackets() {
+  var binding = WidgetsFlutterBinding.ensureInitialized();
+  final previousCallback = binding.platformDispatcher.onPointerDataPacket!;
+  binding.platformDispatcher.onPointerDataPacket = (packet) async {
+    for (final p in packet.data) {
+      debugPrint("${p.change}");
+    }
+    previousCallback(packet);
+  };
 }
 
 class MyApp extends StatefulWidget {
@@ -17,9 +34,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _hidePointer = false;
-  _UsageMode _usageMode = _UsageMode.stream;
-  WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
+  PointerLockCursor _cursor = PointerLockCursor.hidden;
+  PointerLockWindowsMode _windowsMode = PointerLockWindowsMode.capture;
+  _Mode _mode = _Mode.drag;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +46,7 @@ class _MyAppState extends State<MyApp> {
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Try dragging the mouse in the drag area below!'),
+          title: const Text('Pointer Lock Example'),
           centerTitle: true,
         ),
         body: Column(
@@ -39,50 +56,60 @@ class _MyAppState extends State<MyApp> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
+                Tooltip(
+                  message:
+                      "Determines how to activate and deactivate locking.",
+                  child: Row(
+                    spacing: 10,
+                    children: [
+                      const Text("Trigger:"),
+                      SegmentedButton(
+                        showSelectedIcon: false,
+                        selected: {_mode},
+                        onSelectionChanged: (triggers) {
+                          setState(() {
+                            _mode = triggers.first;
+                          });
+                        },
+                        segments: const [
+                          ButtonSegment(
+                            value: _Mode.drag,
+                            label: Text("Drag"),
+                          ),
+                          ButtonSegment(
+                            value: _Mode.free,
+                            label: Text("Free"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
                 // Hide pointer
                 Row(
+                  spacing: 10,
                   children: [
-                    const Text("Hide pointer when dragging"),
-                    _horizontalSpace,
+                    const Text("Hide pointer during lock"),
                     Switch(
-                      value: _hidePointer,
+                      value: _cursor == PointerLockCursor.hidden,
                       onChanged: (value) {
                         setState(() {
-                          _hidePointer = value;
+                          _cursor = value ? PointerLockCursor.hidden : PointerLockCursor.normal;
                         });
                       },
                     )
                   ],
                 ),
-                // Usage mode
-                SegmentedButton<_UsageMode>(
-                  showSelectedIcon: false,
-                  selected: {_usageMode},
-                  onSelectionChanged: (modes) {
-                    setState(() {
-                      _usageMode = modes.first;
-                    });
-                  },
-                  segments: const [
-                    ButtonSegment(
-                      value: _UsageMode.stream,
-                      label: Text("Stream usage"),
-                    ),
-                    ButtonSegment(
-                      value: _UsageMode.manual,
-                      label: Text("Manual usage"),
-                    ),
-                  ],
-                ),
                 // Windows mode
-                if (_usageMode == _UsageMode.stream)
+                if (Platform.isWindows)
                   Tooltip(
-                    message: "Windows mode should make a difference on Windows only",
+                    message:
+                        "Determines which technique is used on Windows to capture the pointer.",
                     child: Row(
+                      spacing: 10,
                       children: [
                         const Text("Windows mode:"),
-                        _horizontalSpace,
-                        SegmentedButton<WindowsPointerLockMode>(
+                        SegmentedButton(
                           showSelectedIcon: false,
                           selected: {_windowsMode},
                           onSelectionChanged: (modes) {
@@ -92,11 +119,11 @@ class _MyAppState extends State<MyApp> {
                           },
                           segments: const [
                             ButtonSegment(
-                              value: WindowsPointerLockMode.capture,
+                              value: PointerLockWindowsMode.capture,
                               label: Text("Capture"),
                             ),
                             ButtonSegment(
-                              value: WindowsPointerLockMode.clip,
+                              value: PointerLockWindowsMode.clip,
                               label: Text("Clip"),
                             ),
                           ],
@@ -112,9 +139,16 @@ class _MyAppState extends State<MyApp> {
                 child: Card(
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
-                  child: switch (_usageMode) {
-                    _UsageMode.manual => ManualExample(hidePointer: _hidePointer),
-                    _UsageMode.stream => StreamExample(hidePointer: _hidePointer, windowsMode: _windowsMode),
+                  child: switch (_mode) {
+                    _Mode.drag => DragExample(
+                      cursor: _cursor,
+                      windowsMode: _windowsMode,
+                    ),
+                    // TODO: Handle this case.
+                    _Mode.free => FreeExample(
+                      cursor: _cursor,
+                      windowsMode: _windowsMode,
+                    ),
                   },
                 ),
               ),
@@ -127,9 +161,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-enum _UsageMode {
-  manual,
-  stream,
+enum _Mode {
+  drag,
+  free,
 }
-
-const _horizontalSpace = SizedBox(width: 10);

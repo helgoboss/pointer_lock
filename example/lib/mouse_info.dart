@@ -10,14 +10,13 @@ class MouseInfo extends StatefulWidget {
 }
 
 class _MouseInfoState extends State<MouseInfo> with SingleTickerProviderStateMixin {
-  final _pointerLockPlugin = PointerLock();
   late final Ticker _ticker;
   Offset _mousePosOnScreen = Offset.zero;
 
   @override
   void initState() {
     _ticker = createTicker((elapsed) async {
-      final pos = await _pointerLockPlugin.pointerPositionOnScreen();
+      final pos = await pointerLock.pointerPositionOnScreen();
       setState(() {
         _mousePosOnScreen = pos;
       });

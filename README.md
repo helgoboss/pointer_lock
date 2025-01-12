@@ -1,19 +1,16 @@
 # pointer_lock
 
-A Flutter plug-in that makes it possible to lock the mouse pointer to its current position.
-This is useful for widgets such as knobs, drag fields and zoom controls.
+A Flutter plug-in that makes it possible to lock the mouse pointer to its current position
+and receive movement deltas while the pointer is locked.
 
-| Linux | macOS | Windows | Web |
-| :---: | :---: | :-----: | :---: |
-|   ✖️   |   ✔️   |    ✔️    |  ✖️  |
+| Windows | macOS | Linux (x11) | Linux (Wayland) | Web |
+|:-------:|:-----:|:-----------:|-----------------|:---:|
+|   ✔️    |  ✔️   |     ✔️      | ✖               | ✖️  |
 
-**Contributions to make it work on Linux and Web are very welcome! I didn't have time to look into 
+**Contributions to make it work on Web are very welcome! I didn't have time to look into 
 it yet.**
 
-## Getting Started
-
-**This plug-in is in an experimental state. API and behavior can change anytime. That's also
-why it's not yet on pub.dev!**
+## Installation
 
 Add this to your package's `pubspec.yaml` file:
 
@@ -25,44 +22,50 @@ dependencies:
       ref: main
 ```
 
-### Usage
+## Usage
 
-Since this is still in a state of flux, there's no extensive documentation yet. For details, 
-read the `PointerLock` method docs and the quick intro below.
+## Use case 1: Lock pointer while dragging (via widget)
 
-There are two basic modes of using this: **Stream** and **Manual**.
+The idea is to lock the pointer when you press a mouse button and unlock it as soon as you release
+it. This is useful for widgets such as knobs, drag fields and zoom controls.
 
-#### Usage mode "Stream"
+This use case is so popular that we have a dedicated widget for it: `PointerLockDragArea`. 
+See [drag_example.dart](example/lib/drag_example.dart) to learn more.
 
-This involves calling `PointerLock.startPointerLockSession` on the click of a mouse button and
-listening to a stream of mouse move deltas. See [this example](example/lib/stream_example.dart).
+If the widget is too restrictive for you, use the stream approach below. The widget itself
+is just a convenience. It also uses the stream under the hood.
 
-For typical click-and-drag scenarios, I recommend this mode. The reason is not just
-convenience, it's also that this mode allows for more freedom in implementation on the native side.
-This freedom makes it possible to use the `SetCapture` technique on Windows, which - unlike
-the `ClipCursor` technique - doesn't come with the danger of stealing raw input focus from other
-parts of the application.
+## Use case 2: Lock and unlock pointer freely (via stream)
 
-It would be possible to improve the stream approach so that it's also suitable for scenarios in 
-which the pointer lock should be started and stopped in response to other events than just a mouse
-button press and release. But it's not something I currently need. If anyone wants to chime in, feel
-free to work on that. PRs welcome.
+The idea is to lock the pointer on some arbitrary event, such as a key or button press,
+and unlock it on another arbitrary event. This is useful for applications or games that
+are mouse-controlled.
 
-#### Usage mode "Manual" 
+This is how it works:
 
-This involves calling `PointerLock.lockPointer`, `PointerLock.unlockPointer` and
-`PointerLock.lastPointerDelta`. See [this example](example/lib/manual_example.dart).
+1. Call `pointerLock.createSession()`.
+2. When you are ready, listen to the resulting stream. This will lock the pointer.
+3. Process pointer movement events emitted from the stream.
+4. When you are done, cancel the stream. This will unlock the pointer
 
-This usage mode is currently better suited if you want to do pointer locking in response to
-events that are *not* mouse button press or release.
+See [free_example.dart](example/lib/free_example.dart) to learn more.
 
-##### Caveat on Windows
+## Platform-specific considerations
 
-On Windows, it comes with the caveat that it's bound to use the `ClipCursor` technique that 
-inherently comes with the danger of stealing raw input focus from other parts of the application. 
-This should be only used if you are sure that the rest of your Windows application doesn't rely on
-raw input (`WM_INPUT` messages).
+### Windows
 
-I currently don't see any possibility to use the `SetCapture` technique in manual usage mode because
-`SetCapture` seems to prevent Flutter itself from receiving mouse events, which makes it difficult
-to yield control back to Flutter in response to a mouse event.
+On Windows, two modes are available: **capture** and **clip**. They differ in the implementation.
+
+Mode **capture** is the recommended mode. It uses the `SetCapture` technique.
+
+Mode **clip** uses the `ClipCursor` technique. This technique comes with the danger of 
+stealing raw input focus from other parts of the application. This should be only used if you are
+sure that the rest of your Windows application doesn't rely on raw input (`WM_INPUT` messages).
+
+Use whatever works best for you!
+
+### Linux
+
+On Linux, we currently only support X11/X.Org. On Wayland, the pointer locking will not really work!
+I hope to add Wayland support soon. Until then, you can ask users of Linux distributions that 
+default to Wayland, to log in using X11/X.Org instead.
