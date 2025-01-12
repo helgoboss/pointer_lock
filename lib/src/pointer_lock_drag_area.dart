@@ -143,7 +143,7 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
       return;
     }
     _session = null;
-    session.subscription.cancel();
+    await session.subscription.cancel();
     final details = PointerLockDragUnlockDetails(trigger: session.downEvent);
     widget.onUnlock?.call(details);
   }
