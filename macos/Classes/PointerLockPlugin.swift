@@ -58,10 +58,19 @@ class PointerLockSessionStreamHandler: NSObject, FlutterStreamHandler {
   }
   
   public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+    unlock()
+    return nil
+  }
+
+  private func unlock() {
     if let monitor {
       NSEvent.removeMonitor(monitor)
     }
     CGAssociateMouseAndMouseCursorPosition(1)
-    return nil
+    NSCursor.unhide()
+  }
+
+  deinit {
+    unlock()
   }
 }
