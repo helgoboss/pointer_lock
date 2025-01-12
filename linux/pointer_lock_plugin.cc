@@ -81,7 +81,11 @@ static void pointer_lock_plugin_handle_method_call(
 
   const gchar* method = fl_method_call_get_name(method_call);
 
-  if (strcmp(method, "hidePointer") == 0) {
+  if (strcmp(method, "flutterRestart") == 0) {
+    set_pointer_visible(self, true);
+    set_pointer_locked(self, false);
+    response = success_response();
+  } else if (strcmp(method, "hidePointer") == 0) {
     response = set_pointer_visible(self, false);
   } else if (strcmp(method, "showPointer") == 0) {
     response = set_pointer_visible(self, true);
