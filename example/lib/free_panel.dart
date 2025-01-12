@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/info_panel.dart';
 
