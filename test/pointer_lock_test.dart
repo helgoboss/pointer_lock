@@ -20,7 +20,6 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    PointerLock pointerLockPlugin = PointerLock();
     // MockPointerLockPlatform fakePlatform = MockPointerLockPlatform();
     // PointerLockPlatform.instance = fakePlatform;
 

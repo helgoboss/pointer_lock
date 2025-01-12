@@ -2,11 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
+import 'package:pointer_lock_example/free_panel.dart';
+import 'package:pointer_lock_example/drag_panel.dart';
 import 'package:pointer_lock_example/mouse_info.dart';
 
-import 'pointer_lock_area.dart';
-
-void main() {
+void main() async {
+  // This initializes binary messengers etc. Important to execute before doing method channel things.
+  WidgetsFlutterBinding.ensureInitialized();
+  await pointerLock.ensureInitialized();
   // _debugIncomingPointerPackets();
   runApp(const MyApp());
 }
@@ -31,9 +34,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool _hidePointer = true;
-  WindowsPointerLockMode _windowsMode = WindowsPointerLockMode.capture;
-  SessionTrigger _sessionTrigger = SessionTrigger.drag;
+  PointerLockCursor _cursor = PointerLockCursor.hidden;
+  PointerLockWindowsMode _windowsMode = PointerLockWindowsMode.capture;
+  _Mode _mode = _Mode.drag;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,7 @@ class _MyAppState extends State<MyApp> {
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Try some mouse interactions in the area below!'),
+          title: const Text('Pointer Lock Example'),
           centerTitle: true,
         ),
         body: Column(
@@ -62,20 +65,20 @@ class _MyAppState extends State<MyApp> {
                       const Text("Trigger:"),
                       SegmentedButton(
                         showSelectedIcon: false,
-                        selected: {_sessionTrigger},
+                        selected: {_mode},
                         onSelectionChanged: (triggers) {
                           setState(() {
-                            _sessionTrigger = triggers.first;
+                            _mode = triggers.first;
                           });
                         },
                         segments: const [
                           ButtonSegment(
-                            value: SessionTrigger.drag,
+                            value: _Mode.drag,
                             label: Text("Drag"),
                           ),
                           ButtonSegment(
-                            value: SessionTrigger.clickAndEscape,
-                            label: Text("Click/Escape"),
+                            value: _Mode.free,
+                            label: Text("Free"),
                           ),
                         ],
                       ),
@@ -88,10 +91,10 @@ class _MyAppState extends State<MyApp> {
                   children: [
                     const Text("Hide pointer during lock"),
                     Switch(
-                      value: _hidePointer,
+                      value: _cursor == PointerLockCursor.hidden,
                       onChanged: (value) {
                         setState(() {
-                          _hidePointer = value;
+                          _cursor = value ? PointerLockCursor.hidden : PointerLockCursor.normal;
                         });
                       },
                     )
@@ -116,11 +119,11 @@ class _MyAppState extends State<MyApp> {
                           },
                           segments: const [
                             ButtonSegment(
-                              value: WindowsPointerLockMode.capture,
+                              value: PointerLockWindowsMode.capture,
                               label: Text("Capture"),
                             ),
                             ButtonSegment(
-                              value: WindowsPointerLockMode.clip,
+                              value: PointerLockWindowsMode.clip,
                               label: Text("Clip"),
                             ),
                           ],
@@ -136,11 +139,17 @@ class _MyAppState extends State<MyApp> {
                 child: Card(
                   margin: const EdgeInsets.all(20),
                   elevation: 1,
-                  child: PointerLockArea(
-                    hidePointer: _hidePointer,
-                    windowsMode: _windowsMode,
-                    sessionTrigger: _sessionTrigger,
-                  ),
+                  child: switch (_mode) {
+                    _Mode.drag => DragPanel(
+                      cursor: _cursor,
+                      windowsMode: _windowsMode,
+                    ),
+                    // TODO: Handle this case.
+                    _Mode.free => FreePanel(
+                      cursor: _cursor,
+                      windowsMode: _windowsMode,
+                    ),
+                  },
                 ),
               ),
             ),
@@ -150,4 +159,9 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+}
+
+enum _Mode {
+  drag,
+  free,
 }

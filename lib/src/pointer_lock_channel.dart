@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import '../pointer_lock.dart';
+import 'pointer_lock.dart';
 import 'pointer_lock_platform_interface.dart';
 import 'dart:io' show Platform;
 
@@ -35,8 +35,8 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   @override
-  Stream<Offset> createSession({
-    required WindowsPointerLockMode windowsMode,
+  Stream<PointerLockMoveEvent> createSession({
+    required PointerLockWindowsMode windowsMode,
     required PointerLockCursor cursor,
   }) {
     return _decorateRawStream(
@@ -46,12 +46,12 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   /// Decorates the given raw stream with hide/show cursor logic.
-  Stream<Offset> _decorateRawStream({
+  Stream<PointerLockMoveEvent> _decorateRawStream({
     required PointerLockCursor cursor,
-    required Stream<Offset> rawStream,
+    required Stream<PointerLockMoveEvent> rawStream,
   }) {
-    final controller = StreamController<Offset>();
-    StreamSubscription<Offset>? rawStreamSubscription;
+    final controller = StreamController<PointerLockMoveEvent>();
+    StreamSubscription<PointerLockMoveEvent>? rawStreamSubscription;
     controller.onListen = () async {
       if (cursor == PointerLockCursor.hidden) {
         await _hidePointer();
@@ -77,9 +77,9 @@ class ChannelPointerLock extends PointerLockPlatform {
   /// Creates a Stream via Dart by tapping into the pointer events that are emitted by Flutter anyway.
   ///
   /// Also calls necessary platform methods for locking and unlocking the pointer.
-  Stream<Offset> _createRawStreamDart() {
+  Stream<PointerLockMoveEvent> _createRawStreamDart() {
     final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
-    final controller = StreamController<Offset>();
+    final controller = StreamController<PointerLockMoveEvent>();
     controller.onListen = () async {
       await _subscribeToRawInputData();
       await _lockPointer();
@@ -88,7 +88,8 @@ class ChannelPointerLock extends PointerLockPlatform {
         final isMotion = packet.data.any((d) => motions.contains(d.change));
         if (isMotion) {
           final delta = await _lastPointerDelta();
-          controller.add(delta);
+          final event = PointerLockMoveEvent(delta: delta);
+          controller.add(event);
         }
         previousCallback(packet);
       };
@@ -100,14 +101,14 @@ class ChannelPointerLock extends PointerLockPlatform {
     return controller.stream;
   }
 
-  Stream<Offset> _createRawStream({required WindowsPointerLockMode windowsMode}) {
+  Stream<PointerLockMoveEvent> _createRawStream({required PointerLockWindowsMode windowsMode}) {
     if (Platform.isWindows) {
       switch (windowsMode) {
-        case WindowsPointerLockMode.capture:
+        case PointerLockWindowsMode.capture:
           // Capture mode needs to be controlled from the native code because the Flutter Engine doesn't receive mouse
           // events anymore while we are capturing them.
           return _createRawStreamNative();
-        case WindowsPointerLockMode.clip:
+        case PointerLockWindowsMode.clip:
           // In clip mode, the Flutter Engine still receives mouse events, so we can control the stream from Dart.
           return _createRawStreamDart();
       }
@@ -125,7 +126,7 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   /// Creates a Stream that is driven by the native code.
-  Stream<Offset> _createRawStreamNative() {
+  Stream<PointerLockMoveEvent> _createRawStreamNative() {
     Offset convertEventToOffset(dynamic event) {
       if (event == null || event is! Float64List || event.length < 2) {
         return Offset.zero;
@@ -133,7 +134,9 @@ class ChannelPointerLock extends PointerLockPlatform {
       return Offset(event[0], event[1]);
     }
 
-    return sessionEventChannel.receiveBroadcastStream().map(convertEventToOffset);
+    return sessionEventChannel
+        .receiveBroadcastStream()
+        .map((evt) => PointerLockMoveEvent(delta: convertEventToOffset(evt)));
   }
 
   Future<void> _lockPointer() {
@@ -171,3 +174,4 @@ Offset _convertListToOffset(List<double>? list) {
   }
   return Offset(list[0], list[1]);
 }
+

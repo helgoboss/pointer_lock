@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import '../pointer_lock.dart';
+import 'pointer_lock.dart';
 import 'pointer_lock_channel.dart';
 
 abstract class PointerLockPlatform extends PlatformInterface {
@@ -30,8 +30,12 @@ abstract class PointerLockPlatform extends PlatformInterface {
     throw UnimplementedError('ensureInitialized() has not been implemented.');
   }
 
-  Stream<Offset> createSession({
-    required WindowsPointerLockMode windowsMode,
+  Future<Offset> pointerPositionOnScreen() {
+    throw UnimplementedError('pointerPositionOnScreen() has not been implemented.');
+  }
+
+  Stream<PointerLockMoveEvent> createSession({
+    required PointerLockWindowsMode windowsMode,
     required PointerLockCursor cursor,
   }) {
     throw UnimplementedError('createSession() has not been implemented.');
