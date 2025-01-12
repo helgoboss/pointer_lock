@@ -67,7 +67,10 @@ namespace pointer_lock {
 	void PointerLockPlugin::HandleMethodCall(
 		const flutter::MethodCall<flutter::EncodableValue>& method_call,
 		std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-		if (method_call.method_name().compare("pointerPositionOnScreen") == 0) {
+		if (method_call.method_name().compare("flutterRestart") == 0) {
+			result->Success();
+		}
+		else if (method_call.method_name().compare("pointerPositionOnScreen") == 0) {
 			POINT cursor_pos;
 			if (!GetCursorPos(&cursor_pos)) {
 				result->Error("UNAVAILABLE", "Couldn't get current cursor position");
