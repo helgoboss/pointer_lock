@@ -31,9 +31,7 @@ class PointerLock {
   bool reportsPointerUpDownEventsReliably({
     required PointerLockWindowsMode windowsMode,
   }) {
-    if (Platform.isWindows && windowsMode == PointerLockWindowsMode.capture) {
-      // This is currently the only case in which mouse events are not reliably emitted
-      // while the pointer is locked.
+    if (Platform.isLinux || Platform.isWindows && windowsMode == PointerLockWindowsMode.capture) {
       return false;
     }
     return true;

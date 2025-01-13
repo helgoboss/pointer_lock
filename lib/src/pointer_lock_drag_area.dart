@@ -161,7 +161,7 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
       // bit hacky. Hope this can be improved in the future.
       return;
     }
-    session.subscription.cancel();
+    await session.subscription.cancel();
     _handleUnlock();
   }
 

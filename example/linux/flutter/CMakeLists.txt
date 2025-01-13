@@ -27,6 +27,8 @@ pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 # Pointer locking on X11 requires usage of X11 API
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+# Pointer locking on Wayland requires usage of Wayland API
+pkg_check_modules(WAYLAND REQUIRED IMPORTED_TARGET wayland-client)
 
 set(FLUTTER_LIBRARY "${EPHEMERAL_DIR}/libflutter_linux_gtk.so")
 
@@ -69,6 +71,7 @@ target_link_libraries(flutter INTERFACE
   PkgConfig::GLIB
   PkgConfig::GIO
   PkgConfig::X11
+  PkgConfig::WAYLAND
 )
 add_dependencies(flutter flutter_assemble)
 

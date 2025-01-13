@@ -69,3 +69,16 @@ Use whatever works best for you!
 On Linux, we currently only support X11/X.Org. On Wayland, the pointer locking will not really work!
 I hope to add Wayland support soon. Until then, you can ask users of Linux distributions that 
 default to Wayland, to log in using X11/X.Org instead.
+
+
+## Development
+
+### Linux
+
+The Wayland files `linux/include/pointer-constraints-unstable-v1-client-protocol.h` and 
+`linux/pointer-constraints-unstable-v1-client-protocol.h` have been generated like this:
+
+```sh
+wayland-scanner client-header /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml linux/include/pointer-constraints-unstable-v1-client-protocol.h
+wayland-scanner private-code /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml linux/pointer-constraints-unstable-v1-client-protocol.c
+```

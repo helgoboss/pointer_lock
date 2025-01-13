@@ -55,7 +55,8 @@ class ChannelPointerLock extends PointerLockPlatform {
 
   @override
   Future<Offset> pointerPositionOnScreen() async {
-    final list = await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
+    final list =
+        await methodChannel.invokeListMethod<double>('pointerPositionOnScreen');
     return _convertListToOffset(list);
   }
 
@@ -102,34 +103,55 @@ class ChannelPointerLock extends PointerLockPlatform {
       await _subscribeToRawInputData();
       await _lockPointer();
       PlatformDispatcher.instance.onPointerDataPacket = (packet) async {
-        const motions = [PointerChange.move, PointerChange.hover];
-        var isMotion = false;
-        for (final data in packet.data) {
-          // Check for pointer-up
-          if (unlockOnPointerUp && data.change == PointerChange.up) {
-            controller.close();
-            return;
+        var unlock = false;
+        var containsMotionEvents = false;
+        // Inspect events in packet, maybe filtering out some of them so that they are not forwarded to the
+        // Flutter widgets.
+        packet.data.retainWhere((data) {
+          switch (data.change) {
+            case PointerChange.up:
+              if (unlockOnPointerUp) {
+                if (unlock) {
+                  // A previous pointer-up event in the same packet triggered an unlock. Forward this one.
+                  return true;
+                } else {
+                  // This is the event which unlocks the pointer!
+                  unlock = true;
+                  return false;
+                }
+              } else {
+                // Without automatic unlocking, we should always forward pointer-up events!
+                return true;
+              }
+            case PointerChange.down:
+              // Forward if there's no automatic unlocking or if a previous pointer-up event already triggered an unlock.
+              return !unlockOnPointerUp || unlock;
+            case PointerChange.move:
+            case PointerChange.hover:
+              containsMotionEvents = true;
+              // Forward only if a previous pointer-up event in the same packet triggered an unlock.
+              // Emitting motion events while the pointer is locked is undesired. It would lead to
+              // hover effects being triggered.
+              return unlock;
+            // Forward all other events
+            default:
+              return true;
           }
-          // Check for move
-          if (motions.contains(data.change)) {
-            isMotion = true;
-            if (!unlockOnPointerUp) {
-              break;
-            }
-          }
+        });
+        // Maybe unlock
+        if (unlock) {
+          // It's important to await here, otherwise it could happen that order of
+          // forwarded packets changes (this forwarded package overtaking a previous
+          // forwarded package). The method channel should nicely serialize everything.
+          await controller.close();
         }
-        if (isMotion) {
+        // Maybe emit move event
+        if (containsMotionEvents) {
           final delta = await _lastPointerDelta();
           if (!controller.isClosed) {
             final event = PointerLockMoveEvent(delta: delta);
             controller.add(event);
           }
-        }
-        if (unlockOnPointerUp && !controller.isClosed) {
-          // Part of the contract in this case is to not emit any pointer-up/down events.
-          // We immediately close the stream as soon as a pointer-up event occurs. But
-          // we still need to actively filter out pointer-down events.
-          packet.data.removeWhere((data) => data.change == PointerChange.down);
         }
         previousCallback(packet);
       };
@@ -163,7 +185,7 @@ class ChannelPointerLock extends PointerLockPlatform {
       // change anymore.
       return _createRawStreamNative(unlockOnPointerUp: unlockOnPointerUp);
     } else {
-      // On Linux (at least X11, Wayland is not implemented yet), we are fine with Dart-controlled streams.
+      // On Linux, we are fine with Dart-controlled streams.
       return _createRawStreamDart(unlockOnPointerUp: unlockOnPointerUp);
     }
   }
@@ -208,7 +230,8 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   Future<Offset> _lastPointerDelta() async {
-    final list = await methodChannel.invokeListMethod<double>('lastPointerDelta');
+    final list =
+        await methodChannel.invokeListMethod<double>('lastPointerDelta');
     return _convertListToOffset(list);
   }
 }
