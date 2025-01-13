@@ -128,11 +128,17 @@ class ChannelPointerLock extends PointerLockPlatform {
               return !unlockOnPointerUp || unlock;
             case PointerChange.move:
             case PointerChange.hover:
-              containsMotionEvents = true;
-              // Forward only if a previous pointer-up event in the same packet triggered an unlock.
-              // Emitting motion events while the pointer is locked is undesired. It would lead to
-              // hover effects being triggered.
-              return unlock;
+              if (data.signalKind == null || data.signalKind == PointerSignalKind.none) {
+                // Normal motion event
+                containsMotionEvents = true;
+                // Forward only if a previous pointer-up event in the same packet triggered an unlock.
+                // Emitting motion events while the pointer is locked is undesired. It would lead to
+                // hover effects being triggered.
+                return unlock;
+              } else {
+                // Signal (e.g. scroll wheel)
+                return true;
+              }
             // Forward all other events
             default:
               return true;
