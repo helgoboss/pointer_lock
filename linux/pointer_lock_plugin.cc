@@ -20,6 +20,8 @@ struct _PointerLockPlugin {
   bool cursor_visible;
 };
 
+static FlEventChannel *event_channel = nullptr;
+
 // Reusable functions
 
 GdkWindow* get_gdk_window(FlPluginRegistrar* registrar) {
@@ -35,8 +37,12 @@ FlMethodResponse* success_response() {
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
+FlValue* point_value(const double x, const double y) {
+  return fl_value_new_float_list((double[]){x, y}, 2);
+}
+
 FlMethodResponse* point_response(const double x, const double y) {
-  g_autoptr(FlValue) result = fl_value_new_float_list((double[]){x, y}, 2);
+  g_autoptr(FlValue) result = point_value(x, y);
   return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
@@ -209,18 +215,47 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
   pointer_lock_plugin_handle_method_call(plugin, method_call);
 }
 
+
+
+static FlMethodErrorResponse* listen_cb (FlEventChannel* channel,
+                                         FlValue *args,
+                                         gpointer user_data) {
+  // set_pointer_locked(static_cast<PointerLockPlugin*>(user_data), true);
+  g_autoptr(FlValue) value = point_value(5.0, 7.0);
+  g_autoptr(GError) error = nullptr;
+  if (!fl_event_channel_send (event_channel, value, nullptr, &error)) {
+    g_warning ("Failed to send event: %s", error->message);
+  }
+  return nullptr;
+}
+
+static FlMethodErrorResponse* cancel_cb (FlEventChannel* channel,
+                                         FlValue *args,
+                                         gpointer user_data) {
+  // set_pointer_locked(static_cast<PointerLockPlugin*>(user_data), true);
+  return nullptr;
+}
+
 void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
+  // Initialize plugin
   PointerLockPlugin* plugin = POINTER_LOCK_PLUGIN(
       g_object_new(pointer_lock_plugin_get_type(), nullptr));
   plugin->registrar = FL_PLUGIN_REGISTRAR(g_object_ref(registrar));
+  // Set up channels
+  FlBinaryMessenger* messenger = fl_plugin_registrar_get_messenger(registrar);
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(FlMethodChannel) channel =
-      fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),
+  // Set up method channel
+  g_autoptr(FlMethodChannel) method_channel =
+      fl_method_channel_new(messenger,
                             "pointer_lock",
                             FL_METHOD_CODEC(codec));
-  fl_method_channel_set_method_call_handler(channel, method_call_cb,
+  fl_method_channel_set_method_call_handler(method_channel, method_call_cb,
                                             g_object_ref(plugin),
                                             g_object_unref);
+  // Set up event channel
+  event_channel = fl_event_channel_new (messenger, "pointer_lock_session", FL_METHOD_CODEC (codec));
+  fl_event_channel_set_stream_handlers (event_channel, listen_cb, cancel_cb,
+                                       plugin, nullptr);
 
   g_object_unref(plugin);
 }
