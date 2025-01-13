@@ -120,10 +120,12 @@ class ChannelPointerLock extends PointerLockPlatform {
         }
         if (isMotion) {
           final delta = await _lastPointerDelta();
-          final event = PointerLockMoveEvent(delta: delta);
-          controller.add(event);
+          if (!controller.isClosed) {
+            final event = PointerLockMoveEvent(delta: delta);
+            controller.add(event);
+          }
         }
-        if (unlockOnPointerUp) {
+        if (unlockOnPointerUp && !controller.isClosed) {
           // Part of the contract in this case is to not emit any pointer-up/down events.
           // We immediately close the stream as soon as a pointer-up event occurs. But
           // we still need to actively filter out pointer-down events.
