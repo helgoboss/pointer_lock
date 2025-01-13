@@ -37,6 +37,7 @@ abstract class PointerLockPlatform extends PlatformInterface {
   Stream<PointerLockMoveEvent> createSession({
     required PointerLockWindowsMode windowsMode,
     required PointerLockCursor cursor,
+    required bool unlockOnPointerUp,
   }) {
     throw UnimplementedError('createSession() has not been implemented.');
   }

@@ -197,7 +197,14 @@ namespace pointer_lock {
 		const flutter::EncodableValue* arguments,
 		std::unique_ptr<flutter::EventSink<flutter::EncodableValue>>&& events
 	) {
-		session_ = std::make_unique<PointerLockSession>(registrar_, std::move(events));
+		bool unlockOnPointerUp = false;
+		if (arguments) {
+			if (std::holds_alternative<bool>(*arguments)) {
+				const auto& value = std::get<bool>(*arguments);
+				unlockOnPointerUp = value;
+			}
+		}
+		session_ = std::make_unique<PointerLockSession>(registrar_, std::move(events), unlockOnPointerUp);
 		return nullptr;
 	}
 
@@ -219,8 +226,9 @@ namespace pointer_lock {
 
 	PointerLockSession::PointerLockSession(
 		flutter::PluginRegistrarWindows* registrar,
-		std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink
-	) : registrar_(registrar), sink_(std::move(sink)), locked_pointer_screen_pos_() {
+		std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink,
+		bool unlockOnPointerUp
+	) : registrar_(registrar), unlockOnPointerUp_(unlockOnPointerUp), sink_(std::move(sink)), locked_pointer_screen_pos_() {
 		// Remember the current cursor position so that we can restore it on each mouse move
 		GetCursorPos(&locked_pointer_screen_pos_);
 		// Listen to mouse moves and mouse button releases. Below delegate will receive the mouse messages only
@@ -266,6 +274,13 @@ namespace pointer_lock {
 				case WM_RBUTTONUP:
 				case WM_MBUTTONUP:
 				case WM_XBUTTONUP:
+					if (unlockOnPointerUp_) {
+						// Sending an end-of-stream event to Flutter will trigger OnCancelInternal()
+						// and that will release the capture.  
+						sink_->EndOfStream();
+						return 0;
+					}
+					[[fallthrough]];
 				case WM_LBUTTONDOWN:
 				case WM_RBUTTONDOWN:
 				case WM_MBUTTONDOWN:
@@ -274,6 +289,12 @@ namespace pointer_lock {
 				case WM_RBUTTONDBLCLK:
 				case WM_MBUTTONDBLCLK:
 				case WM_XBUTTONDBLCLK:
+					if (unlockOnPointerUp_) {
+						// In this case, the contract says that we must not emit any pointer up/down events.
+						// This wouldn't be useful, and most importantly, it would make things more complex or could confuse Flutter 
+						// (when pressing another button while the initial button is still pressed).
+						return 0;
+					}
 					// We want to forward button clicks to the rest of the Flutter app. The Dart code might be interested in them.
 					// There's a corner case that is relevant for the "release pointer lock after dragging" use case. As soon as the pointer
 					// moves while SetCapture is set, Flutter emits a pointer-cancel and pointer-remove event (probably indicating to Dart that the
