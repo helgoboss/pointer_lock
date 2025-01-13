@@ -95,8 +95,7 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown:
-          widget.onMove == null ? null : (event) => _onPointerDown(event),
+      onPointerDown: widget.onMove == null ? null : (event) => _onPointerDown(event),
       onPointerUp: (event) => _onPointerUp(event),
       child: widget.child,
     );
@@ -109,31 +108,51 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
     if (!widget.accept(PointerLockDragAcceptDetails(trigger: downEvent))) {
       return;
     }
+    // If it's known that mouse events such as pointer-up are not reliably emitted while the pointer is locked,
+    // we ask the implementation to unlock the mouse pointer automatically when the pointer goes up.
+    // The advantage is that the lock reliably ends. The disadvantage is that the session doesn't
+    // care which pointer/button goes up. Reliability is more important though.
+    final unlockAutomatically = !pointerLock.reportsPointerUpDownEventsReliably(windowsMode: widget.windowsMode);
     final deltaStream = pointerLock.createSession(
       windowsMode: widget.windowsMode,
       cursor: widget.cursor,
+      unlockOnPointerUp: unlockAutomatically,
     );
-    final subscription = deltaStream.listen((event) {
-      final details =
-          PointerLockDragMoveDetails(trigger: downEvent, move: event);
-      widget.onMove?.call(details);
-    });
-    _session = _Session(downEvent: downEvent, subscription: subscription);
+    final subscription = deltaStream.listen(
+      (event) {
+        final details = PointerLockDragMoveDetails(trigger: downEvent, move: event);
+        widget.onMove?.call(details);
+      },
+      // onDone will only be invoked if the stream has been created with unlockOnPointerUp
+      // (that is, if the stream ends naturally)
+      onDone: () => _handleUnlock(),
+    );
+    _session = _Session(
+      downEvent: downEvent,
+      subscription: subscription,
+      unlocksAutomatically: unlockAutomatically,
+    );
     final details = PointerLockDragLockDetails(trigger: downEvent);
     widget.onLock?.call(details);
   }
 
+  /// Unlocks the pointer if necessary.
   void _onPointerUp(PointerUpEvent upEvent) async {
     final session = _session;
     if (session == null) {
       return;
     }
-    final checkPointer = !Platform.isWindows ||
-        widget.windowsMode == PointerLockWindowsMode.clip;
-    if (checkPointer && upEvent.pointer != session.downEvent.pointer) {
-      // The up event doesn't belong to the previous down event.
+    if (session.unlocksAutomatically) {
+      // No need to take care of unlocking in this case.
+      return;
+    }
+    if (upEvent.pointer != session.downEvent.pointer) {
+      // The up event doesn't belong to the previous down event. In this case, we
+      // better don't unlock the pointer. Imagine a multi-touch gesture. Finger 1
+      // touches the surface, causing a pointer lock, finger 2 goes down and up.
+      // In this case, we don't want to unlock the pointer yet.
       //
-      // On Windows, we don't do that check because it's hard to figure out
+      // On Windows, we couldn't easily do that check because it's hard to figure out
       // whether the pointer-up event belongs to the pointer-down event.
       // When using capture mode, the pointer-up event will
       // will be disassociated from the original pointer-down event, because
@@ -142,8 +161,16 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
       // bit hacky. Hope this can be improved in the future.
       return;
     }
+    session.subscription.cancel();
+    _handleUnlock();
+  }
+
+  void _handleUnlock() {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
     _session = null;
-    await session.subscription.cancel();
     final details = PointerLockDragUnlockDetails(trigger: session.downEvent);
     widget.onUnlock?.call(details);
   }
@@ -152,6 +179,11 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
 class _Session {
   final PointerDownEvent downEvent;
   final StreamSubscription<PointerLockMoveEvent> subscription;
+  final bool unlocksAutomatically;
 
-  _Session({required this.downEvent, required this.subscription});
+  _Session({
+    required this.downEvent,
+    required this.subscription,
+    required this.unlocksAutomatically,
+  });
 }

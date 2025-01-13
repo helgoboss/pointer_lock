@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'pointer_lock_platform_interface.dart';
@@ -25,14 +26,38 @@ class PointerLock {
     return PointerLockPlatform.instance.ensureInitialized();
   }
 
+  /// Returns whether pointer up or down events are reliably emitted while the pointer is locked, given the current
+  /// platform and passed mode.
+  bool reportsPointerUpDownEventsReliably({
+    required PointerLockWindowsMode windowsMode,
+  }) {
+    if (Platform.isWindows && windowsMode == PointerLockWindowsMode.capture) {
+      // This is currently the only case in which mouse events are not reliably emitted
+      // while the pointer is locked.
+      return false;
+    }
+    return true;
+  }
+
   /// Creates a stream which locks the pointer and emits pointer-move events as long as you subscribe to it.
+  ///
+  /// If you set `unlockOnPointerUp` to `false` (the default), the stream is infinite, so `onDone` will never
+  /// be triggered. You have to cancel the stream by yourself, which also unlocks the pointer. Pointer up and
+  /// down events will be emitted while the pointer is locked (maybe not accurately though, see
+  /// [reportsPointerUpDownEventsReliably]).
+  ///
+  /// If you set `unlockOnPointerUp` to `true`, the stream will end naturally when any pointer button is released.
+  /// `onDone` is triggered and the pointer unlocks. Pointer up and down events will not be emitted while the
+  /// pointer is locked.
   Stream<PointerLockMoveEvent> createSession({
     PointerLockWindowsMode windowsMode = PointerLockWindowsMode.capture,
     PointerLockCursor cursor = PointerLockCursor.hidden,
+    bool unlockOnPointerUp = false,
   }) {
     return PointerLockPlatform.instance.createSession(
       windowsMode: windowsMode,
       cursor: cursor,
+      unlockOnPointerUp: unlockOnPointerUp,
     );
   }
 
@@ -87,6 +112,7 @@ enum PointerLockCursor {
   ///
   /// On most platforms, this is the cursor which was shown before the pointer was locked.
   normal,
+
   /// Hides the cursor.
   ///
   /// This is usually preferred, because on some platforms, a visible cursor can flicker when moving

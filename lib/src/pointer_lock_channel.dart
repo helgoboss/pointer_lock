@@ -32,10 +32,14 @@ class ChannelPointerLock extends PointerLockPlatform {
   Stream<PointerLockMoveEvent> createSession({
     required PointerLockWindowsMode windowsMode,
     required PointerLockCursor cursor,
+    required bool unlockOnPointerUp,
   }) {
     return _decorateRawStream(
       cursor: cursor,
-      rawStream: _createRawStream(windowsMode: windowsMode),
+      rawStream: _createRawStream(
+        windowsMode: windowsMode,
+        unlockOnPointerUp: unlockOnPointerUp,
+      ),
     );
   }
 
@@ -71,6 +75,8 @@ class ChannelPointerLock extends PointerLockPlatform {
         controller.add,
         cancelOnError: false,
         onError: (Object error) => controller.addError(error),
+        // This will only be called if the raw stream was created with unlockOnPointerUp (automatic unlocking)
+        onDone: () => controller.close(),
       );
     };
     controller.onCancel = () async {
@@ -87,7 +93,9 @@ class ChannelPointerLock extends PointerLockPlatform {
   /// Creates a Stream via Dart by tapping into the pointer events that are emitted by Flutter anyway.
   ///
   /// Also calls necessary platform methods for locking and unlocking the pointer.
-  Stream<PointerLockMoveEvent> _createRawStreamDart() {
+  Stream<PointerLockMoveEvent> _createRawStreamDart({
+    required bool unlockOnPointerUp,
+  }) {
     final previousCallback = PlatformDispatcher.instance.onPointerDataPacket!;
     final controller = StreamController<PointerLockMoveEvent>();
     controller.onListen = () async {
@@ -95,11 +103,31 @@ class ChannelPointerLock extends PointerLockPlatform {
       await _lockPointer();
       PlatformDispatcher.instance.onPointerDataPacket = (packet) async {
         const motions = [PointerChange.move, PointerChange.hover];
-        final isMotion = packet.data.any((d) => motions.contains(d.change));
+        var isMotion = false;
+        for (final data in packet.data) {
+          // Check for pointer-up
+          if (unlockOnPointerUp && data.change == PointerChange.up) {
+            controller.close();
+            return;
+          }
+          // Check for move
+          if (motions.contains(data.change)) {
+            isMotion = true;
+            if (!unlockOnPointerUp) {
+              break;
+            }
+          }
+        }
         if (isMotion) {
           final delta = await _lastPointerDelta();
           final event = PointerLockMoveEvent(delta: delta);
           controller.add(event);
+        }
+        if (unlockOnPointerUp) {
+          // Part of the contract in this case is to not emit any pointer-up/down events.
+          // We immediately close the stream as soon as a pointer-up event occurs. But
+          // we still need to actively filter out pointer-down events.
+          packet.data.removeWhere((data) => data.change == PointerChange.down);
         }
         previousCallback(packet);
       };
@@ -111,16 +139,19 @@ class ChannelPointerLock extends PointerLockPlatform {
     return controller.stream;
   }
 
-  Stream<PointerLockMoveEvent> _createRawStream({required PointerLockWindowsMode windowsMode}) {
+  Stream<PointerLockMoveEvent> _createRawStream({
+    required PointerLockWindowsMode windowsMode,
+    required bool unlockOnPointerUp,
+  }) {
     if (Platform.isWindows) {
       switch (windowsMode) {
         case PointerLockWindowsMode.capture:
           // Capture mode needs to be controlled from the native code because the Flutter Engine doesn't receive mouse
           // events anymore while we are capturing them.
-          return _createRawStreamNative();
+          return _createRawStreamNative(unlockOnPointerUp: unlockOnPointerUp);
         case PointerLockWindowsMode.clip:
           // In clip mode, the Flutter Engine still receives mouse events, so we can control the stream from Dart.
-          return _createRawStreamDart();
+          return _createRawStreamDart(unlockOnPointerUp: unlockOnPointerUp);
       }
     } else if (Platform.isMacOS) {
       // On macOS, we need to put the native code in control, otherwise we would only receive deltas while a mouse
@@ -128,15 +159,17 @@ class ChannelPointerLock extends PointerLockPlatform {
       // events. The Flutter Engine forwards mouse-move events to Dart only if the pointer coordinates change. But
       // when doing locking the pointer via CGAssociateMouseAndMouseCursorPosition(0), the absolute coordinates don't
       // change anymore.
-      return _createRawStreamNative();
+      return _createRawStreamNative(unlockOnPointerUp: unlockOnPointerUp);
     } else {
       // On Linux (at least X11, Wayland is not implemented yet), we are fine with Dart-controlled streams.
-      return _createRawStreamDart();
+      return _createRawStreamDart(unlockOnPointerUp: unlockOnPointerUp);
     }
   }
 
   /// Creates a Stream that is driven by the native code.
-  Stream<PointerLockMoveEvent> _createRawStreamNative() {
+  Stream<PointerLockMoveEvent> _createRawStreamNative({
+    required bool unlockOnPointerUp,
+  }) {
     Offset convertEventToOffset(dynamic event) {
       if (event == null || event is! Float64List || event.length < 2) {
         return Offset.zero;
@@ -145,7 +178,7 @@ class ChannelPointerLock extends PointerLockPlatform {
     }
 
     return sessionEventChannel
-        .receiveBroadcastStream()
+        .receiveBroadcastStream(unlockOnPointerUp)
         .map((evt) => PointerLockMoveEvent(delta: convertEventToOffset(evt)));
   }
 
@@ -184,4 +217,3 @@ Offset _convertListToOffset(List<double>? list) {
   }
   return Offset(list[0], list[1]);
 }
-

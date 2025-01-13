@@ -47,10 +47,12 @@ class PointerLockPlugin : public flutter::Plugin {
 
 struct PointerLockSession {
 public:
-  PointerLockSession(flutter::PluginRegistrarWindows* registrar, std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink);
+  PointerLockSession(flutter::PluginRegistrarWindows* registrar, std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink, bool unlockOnPointerUp);
   ~PointerLockSession();
 private:
   flutter::PluginRegistrarWindows* registrar_;
+
+  bool unlockOnPointerUp_;
   
   // Event sink. Lets us send events to Flutter. 
   std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> sink_;
