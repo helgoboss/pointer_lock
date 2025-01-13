@@ -175,11 +175,10 @@ FlMethodResponse* set_pointer_locked(PointerLockPlugin* plugin, bool locked) {
         get_pointer_pos_relative_to_window(gdk_window);
     // Grab pointer
     Window x_window = GDK_WINDOW_XID(gdk_window);
-    GdkCursor* gdk_cursor = plugin->cursor_visible
-                              ? nullptr
-                              : gdk_cursor_new_for_display(
-                                  gdk_display, GDK_BLANK_CURSOR);
-    Cursor x_cursor = gdk_x11_cursor_get_xcursor(gdk_cursor);
+    // Somehow, only the blank cursor works with XWarpPointer (which keeps the pointer at its place), at
+    // least when running on Wayland. No problem. Ignore the cursor hint. Just always hide the cursor.
+    GdkCursor* gdk_cursor = gdk_cursor_new_for_display(gdk_display, GDK_BLANK_CURSOR);
+    Cursor x_cursor = gdk_cursor ? gdk_x11_cursor_get_xcursor(gdk_cursor) : 0;
     int eventMask =
         PointerMotionMask | ButtonReleaseMask | ButtonPressMask |
         EnterWindowMask | LeaveWindowMask;
@@ -187,7 +186,9 @@ FlMethodResponse* set_pointer_locked(PointerLockPlugin* plugin, bool locked) {
     int result = XGrabPointer(x_display, x_window, TRUE, eventMask,
                               GrabModeAsync, GrabModeAsync, x_window,
                               x_cursor, 0);
-    g_object_unref(gdk_cursor);
+    if (gdk_cursor) {
+      g_object_unref(gdk_cursor);
+    }
     if (result != GrabSuccess) {
       return error_response("XGrabPointer failed");
     }
