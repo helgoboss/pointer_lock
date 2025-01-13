@@ -5,7 +5,7 @@ and receive movement deltas while the pointer is locked.
 
 | Windows | macOS | Linux (x11) | Linux (Wayland) | Web |
 |:-------:|:-----:|:-----------:|-----------------|:---:|
-|   ✔️    |  ✔️   |     ✔️      | ✖               | ✖️  |
+|   ✔️    |  ✔️   |     ✔️      | ✔               | ✖️  |
 
 **Contributions to make it work on Web are very welcome! I didn't have time to look into 
 it yet.**
@@ -66,14 +66,25 @@ Use whatever works best for you!
 
 ### Linux
 
-On Linux, we currently only support X11/X.Org. On Wayland, the pointer locking will not really work!
-I hope to add Wayland support soon. Until then, you can ask users of Linux distributions that 
-default to Wayland, to log in using X11/X.Org instead.
-
+On Linux, things work okay both in X11 and Wayland. The implementation is based on the X11 
+functions `XGrabCursor` and `XWarpCursor`. On Wayland, it still works, thanks to the
+compatibility layer.
 
 ## Development
 
 ### Linux
+
+#### Room for improvement
+
+There's room for improvement for the Linux platform:
+
+- We could probably replace the X11 functions `XGrabCursor` and `XWarpCursor` with the 
+  GTK counterparts.
+- For Wayland, we could use the Wayland-specific "pointer-constraints-unstable-v1" API in order
+  to allow for a smoother pointer locking experience. A few preparations have been done already
+  (see `pointer_lock_plugin.cc` file). However, the X11 implementation seems to work fine for now.
+
+#### Build
 
 The Wayland files `linux/include/pointer-constraints-unstable-v1-client-protocol.h` and 
 `linux/pointer-constraints-unstable-v1-client-protocol.h` have been generated like this:
