@@ -49,7 +49,17 @@ class PointerLockSessionStreamHandler: NSObject, FlutterStreamHandler {
   
   public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     CGAssociateMouseAndMouseCursorPosition(0)
-    monitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]) { event in
+    var unlockOnPointerUp = false
+    if let arguments = arguments as? Bool {
+        unlockOnPointerUp = arguments
+    }
+    monitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged, .leftMouseUp, .rightMouseUp, .otherMouseUp]
+    ) { event in
+      if unlockOnPointerUp && [.leftMouseUp, .rightMouseUp, .otherMouseUp].contains(event.type) {
+        events(FlutterEndOfEventStream)
+        return event
+      }
       let (x, y) = CGGetLastMouseDelta()
       let list: [Double] = [Double(x), Double(y)];
       list.withUnsafeBufferPointer { buffer in
