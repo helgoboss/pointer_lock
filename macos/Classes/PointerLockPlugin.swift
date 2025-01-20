@@ -80,6 +80,7 @@ class PointerLockSessionStreamHandler: NSObject, FlutterStreamHandler {
     if let monitor {
       NSEvent.removeMonitor(monitor)
     }
+    monitor = nil
     CGAssociateMouseAndMouseCursorPosition(1)
     NSCursor.unhide()
   }
