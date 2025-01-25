@@ -83,13 +83,4 @@ There's room for improvement for the Linux platform:
 - For Wayland, we could use the Wayland-specific "pointer-constraints-unstable-v1" API in order
   to allow for a smoother pointer locking experience. A few preparations have been done already
   (see `pointer_lock_plugin.cc` file). However, the X11 implementation seems to work fine for now.
-
-#### Build
-
-The Wayland files `linux/include/pointer-constraints-unstable-v1-client-protocol.h` and 
-`linux/pointer-constraints-unstable-v1-client-protocol.h` have been generated like this:
-
-```sh
-wayland-scanner client-header /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml linux/include/pointer-constraints-unstable-v1-client-protocol.h
-wayland-scanner private-code /usr/share/wayland-protocols/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml linux/pointer-constraints-unstable-v1-client-protocol.c
-```
+  

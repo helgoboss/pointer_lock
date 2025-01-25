@@ -5,19 +5,14 @@ cmake_minimum_required(VERSION 3.10)
 
 # Project-level configuration.
 set(PROJECT_NAME "pointer_lock")
-# The "C" was added for the Wayland-specific implementation
-project(${PROJECT_NAME} LANGUAGES CXX C)
+project(${PROJECT_NAME} LANGUAGES CXX)
 
 # This value is used when generating builds using this plugin, so it must
 # not be changed.
 set(PLUGIN_NAME "pointer_lock_plugin")
 
 # Any new source files that you add to the plugin should be added here.
-list(APPEND PLUGIN_SOURCES
-  # Wayland
-  "pointer-constraints-unstable-v1-client-protocol.c"
-  "pointer_lock_plugin.cc"
-)
+list(APPEND PLUGIN_SOURCES "pointer_lock_plugin.cc")
 
 # Define the plugin library target. Its name must not be changed (see comment
 # on PLUGIN_NAME above).

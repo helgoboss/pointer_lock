@@ -6,8 +6,6 @@
 
 #include <cstring>
 #include <gdk/gdkx.h>
-#include <gdk/gdkwayland.h>
-#include "include/pointer-constraints-unstable-v1-client-protocol.h"
 
 #include "pointer_lock_plugin_private.h"
 
@@ -217,87 +215,6 @@ static void method_call_cb(FlMethodChannel* channel, FlMethodCall* method_call,
   PointerLockPlugin* plugin = POINTER_LOCK_PLUGIN(user_data);
   pointer_lock_plugin_handle_method_call(plugin, method_call);
 }
-
-
-// WAYLAND EXPERIMENTS - BEGIN (not in use!)
-
-struct zwp_pointer_constraints_v1 *pointer_constraints = NULL;
-
-
-wl_surface* get_wayland_surface(GdkWindow *gdk_window) {
-  // Ensure we are running under Wayland
-  if (GDK_IS_WAYLAND_WINDOW(gdk_window)) {
-    wl_surface* surface = gdk_wayland_window_get_wl_surface(gdk_window);
-    if (!surface) {
-      g_warning("Failed to get wl_surface");
-    }
-    return surface;
-  } else {
-    g_warning("Not running under Wayland backend");
-    return nullptr;
-  }
-}
-
-
-static void locked_pointer_locked(void *data, struct zwp_locked_pointer_v1 *locked_pointer) {
-  printf("Pointer locked\n");
-}
-
-static void locked_pointer_unlocked(void *data, struct zwp_locked_pointer_v1 *locked_pointer) {
-  printf("Pointer unlocked\n");
-}
-
-static const struct zwp_locked_pointer_v1_listener locked_pointer_listener = {
-  .locked = locked_pointer_locked,
-  .unlocked = locked_pointer_unlocked,
-};
-
-static FlMethodErrorResponse* listen_cb (FlEventChannel* channel,
-                                         FlValue *args,
-                                         gpointer user_data) {
-  PointerLockPlugin* plugin = static_cast<PointerLockPlugin*>(user_data);
-  // TODO complain if window null
-  GdkWindow* gdk_window = get_gdk_window(plugin->registrar);
-  GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
-  // TODO complain if not wayland
-    GdkSeat *gdk_seat = gdk_display_get_default_seat(gdk_display);
-  wl_surface* surface = get_wayland_surface(gdk_window);
-  // TODO complain if null
-  wl_seat* wayland_seat = gdk_wayland_seat_get_wl_seat(gdk_seat);
-  struct wl_pointer *wayland_pointer = wl_seat_get_pointer(wayland_seat);
-
-  if (!surface || !wayland_pointer) {
-    fprintf(stderr, "Failed to create surface or pointer\n");
-    return nullptr;
-  }
-  // Lock the pointer
-  struct zwp_locked_pointer_v1 *locked_pointer =
-      zwp_pointer_constraints_v1_lock_pointer(pointer_constraints, surface, wayland_pointer, nullptr, ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT);
-
-  if (!locked_pointer) {
-    fprintf(stderr, "Failed to lock pointer\n");
-    return nullptr;
-  }
-
-  zwp_locked_pointer_v1_add_listener(locked_pointer, &locked_pointer_listener, NULL);
-
-
-  g_autoptr(FlValue) value = point_value(5.0, 7.0);
-  g_autoptr(GError) error = nullptr;
-  if (!fl_event_channel_send (event_channel, value, nullptr, &error)) {
-    g_warning ("Failed to send event: %s", error->message);
-  }
-  return nullptr;
-}
-
-static FlMethodErrorResponse* cancel_cb (FlEventChannel* channel,
-                                         FlValue *args,
-                                         gpointer user_data) {
-  // set_pointer_locked(static_cast<PointerLockPlugin*>(user_data), true);
-  return nullptr;
-}
-
-// WAYLAND EXPERIMENTS - END
 
 void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
   // Initialize plugin
