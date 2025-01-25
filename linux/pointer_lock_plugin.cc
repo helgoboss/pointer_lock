@@ -20,8 +20,6 @@ struct _PointerLockPlugin {
   bool cursor_visible;
 };
 
-static FlEventChannel *event_channel = nullptr;
-
 // Reusable functions
 
 GdkWindow* get_gdk_window(FlPluginRegistrar* registrar) {
@@ -232,10 +230,6 @@ void pointer_lock_plugin_register_with_registrar(FlPluginRegistrar* registrar) {
   fl_method_channel_set_method_call_handler(method_channel, method_call_cb,
                                             g_object_ref(plugin),
                                             g_object_unref);
-  // Set up event channel
-  event_channel = fl_event_channel_new (messenger, "pointer_lock_session", FL_METHOD_CODEC (codec));
-  fl_event_channel_set_stream_handlers (event_channel, listen_cb, cancel_cb,
-                                       plugin, nullptr);
 
   g_object_unref(plugin);
 }
