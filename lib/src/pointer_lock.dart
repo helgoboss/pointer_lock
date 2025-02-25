@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 
 import 'pointer_lock_platform_interface.dart';
 
@@ -31,7 +32,9 @@ class PointerLock {
   bool reportsPointerUpDownEventsReliably({
     required PointerLockWindowsMode windowsMode,
   }) {
-    if (Platform.isLinux || Platform.isWindows && windowsMode == PointerLockWindowsMode.capture) {
+    if (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows &&
+            windowsMode == PointerLockWindowsMode.capture) {
       return false;
     }
     return true;
@@ -72,6 +75,7 @@ class PointerLock {
   /// - On Windows: `ShowCursor`
   /// - On macOS: `NSCursor.hide`
   /// - On Linux: `gdk_window_set_cursor`
+  /// - On Web: No effect (pointer is always hidden during pointer lock)
   Future<void> hidePointer() {
     return PointerLockPlatform.instance.hidePointer();
   }
@@ -84,10 +88,10 @@ class PointerLock {
   /// - On Windows: `ShowCursor`
   /// - On macOS: `NSCursor.unhide`
   /// - On Linux: `gdk_window_set_cursor`
+  /// - On Web: No effect (pointer is always hidden during pointer lock)
   Future<void> showPointer() {
     return PointerLockPlatform.instance.showPointer();
   }
-
 
   /// A utility function that returns the position of the pointer in screen coordinates.
   Future<Offset> pointerPositionOnScreen() {
