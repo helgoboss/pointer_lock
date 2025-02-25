@@ -74,9 +74,20 @@ class _FreeExampleState extends State<FreeExample> {
       windowsMode: widget.windowsMode,
       cursor: widget.cursor,
     );
-    final subscription = deltaStream.listen((event) {
-      _processMoveDelta(event.delta);
-    });
+    final subscription = deltaStream.listen(
+      (event) {
+        _processMoveDelta(event.delta);
+      },
+      onDone: () {
+        // Stream closed naturally
+        _setSubscription(null);
+      },
+      onError: (error) {
+        // Handle any errors
+        debugPrint('Pointer lock error: $error');
+        _setSubscription(null);
+      },
+    );
     _setSubscription(subscription);
   }
 

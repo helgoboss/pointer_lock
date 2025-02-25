@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'pointer_lock.dart';
 import 'pointer_lock_platform_interface.dart';
-import 'dart:io' show Platform;
 
 /// An implementation of [PointerLockPlatform] that uses channels.
 class ChannelPointerLock extends PointerLockPlatform {
@@ -128,7 +127,8 @@ class ChannelPointerLock extends PointerLockPlatform {
               return !unlockOnPointerUp || unlock;
             case PointerChange.move:
             case PointerChange.hover:
-              if (data.signalKind == null || data.signalKind == PointerSignalKind.none) {
+              if (data.signalKind == null ||
+                  data.signalKind == PointerSignalKind.none) {
                 // Normal motion event
                 containsMotionEvents = true;
                 // Forward only if a previous pointer-up event in the same packet triggered an unlock.
@@ -173,7 +173,7 @@ class ChannelPointerLock extends PointerLockPlatform {
     required PointerLockWindowsMode windowsMode,
     required bool unlockOnPointerUp,
   }) {
-    if (Platform.isWindows) {
+    if (defaultTargetPlatform == TargetPlatform.windows) {
       switch (windowsMode) {
         case PointerLockWindowsMode.capture:
           // Capture mode needs to be controlled from the native code because the Flutter Engine doesn't receive mouse
@@ -183,7 +183,7 @@ class ChannelPointerLock extends PointerLockPlatform {
           // In clip mode, the Flutter Engine still receives mouse events, so we can control the stream from Dart.
           return _createRawStreamDart(unlockOnPointerUp: unlockOnPointerUp);
       }
-    } else if (Platform.isMacOS) {
+    } else if (defaultTargetPlatform == TargetPlatform.macOS) {
       // On macOS, we need to put the native code in control, otherwise we would only receive deltas while a mouse
       // button is pressed. If the mouse button is not pressed, macOS generates mouse-move events instead of mouse-drag
       // events. The Flutter Engine forwards mouse-move events to Dart only if the pointer coordinates change. But
@@ -229,7 +229,7 @@ class ChannelPointerLock extends PointerLockPlatform {
   }
 
   Future<void> _subscribeToRawInputData() async {
-    if (!Platform.isWindows) {
+    if (defaultTargetPlatform != TargetPlatform.windows) {
       return;
     }
     return methodChannel.invokeMethod<void>('subscribeToRawInputData');

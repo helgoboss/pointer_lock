@@ -9,7 +9,7 @@ import 'pointer_lock.dart';
 ///
 /// This is useful as a basic building block for widgets such as knobs, drag fields and zoom controls.
 class PointerLockDragArea extends StatefulWidget {
-  /// Which cursor to display while the pointer is locked.
+  /// Which cursor to display while the pointer is locked. On web, this is ignored.
   final PointerLockCursor cursor;
 
   /// Which pointer locking approach to use on Windows (doesn't affect other platforms).
@@ -95,7 +95,8 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: widget.onMove == null ? null : (event) => _onPointerDown(event),
+      onPointerDown:
+          widget.onMove == null ? null : (event) => _onPointerDown(event),
       onPointerUp: (event) => _onPointerUp(event),
       child: widget.child,
     );
@@ -112,7 +113,8 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
     // we ask the implementation to unlock the mouse pointer automatically when the pointer goes up.
     // The advantage is that the lock reliably ends. The disadvantage is that the session doesn't
     // care which pointer/button goes up. Reliability is more important though.
-    final unlockAutomatically = !pointerLock.reportsPointerUpDownEventsReliably(windowsMode: widget.windowsMode);
+    final unlockAutomatically = !pointerLock.reportsPointerUpDownEventsReliably(
+        windowsMode: widget.windowsMode);
     final deltaStream = pointerLock.createSession(
       windowsMode: widget.windowsMode,
       cursor: widget.cursor,
@@ -120,7 +122,8 @@ class _PointerLockDragAreaState extends State<PointerLockDragArea> {
     );
     final subscription = deltaStream.listen(
       (event) {
-        final details = PointerLockDragMoveDetails(trigger: downEvent, move: event);
+        final details =
+            PointerLockDragMoveDetails(trigger: downEvent, move: event);
         widget.onMove?.call(details);
       },
       // onDone will only be invoked if the stream has been created with unlockOnPointerUp

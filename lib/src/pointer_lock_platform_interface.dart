@@ -47,6 +47,7 @@ abstract class PointerLockPlatform extends PlatformInterface {
   }
 
   Future<Offset> pointerPositionOnScreen() {
-    throw UnimplementedError('pointerPositionOnScreen() has not been implemented.');
+    throw UnimplementedError(
+        'pointerPositionOnScreen() has not been implemented.');
   }
 }
