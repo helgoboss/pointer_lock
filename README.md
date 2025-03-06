@@ -3,12 +3,9 @@
 A Flutter plug-in that makes it possible to lock the mouse pointer to its current position
 and receive movement deltas while the pointer is locked.
 
-| Windows | macOS | Linux (x11) | Linux (Wayland) | Web |
-|:-------:|:-----:|:-----------:|-----------------|:---:|
-|   ✔️    |  ✔️   |     ✔️      | ✔               | ✖️  |
-
-**Contributions to make it work on Web are very welcome! I didn't have time to look into 
-it yet.**
+| Windows | macOS | Linux (x11) | Linux (Wayland) |        Web        |
+|:-------:|:-----:|:-----------:|-----------------|:-----------------:|
+|   ✔️    |  ✔️   |     ✔️      | ✔               | Experimental️ (*) |
 
 ## Installation
 
@@ -69,6 +66,18 @@ Use whatever works best for you!
 On Linux, things work okay both in X11 and Wayland. The implementation is based on the X11 
 functions `XGrabCursor` and `XWarpCursor`. On Wayland, it still works, thanks to the
 compatibility layer.
+
+### Web (*)
+
+Experimental web support has landed thanks to a contribution by @damywise.
+
+Known issues:
+
+- Successfully tested on Chrome only.
+- On macOS, I observed a an issue in drag mode where releasing the mouse button without dragging
+  would leave the pointer locked (#4).
+
+**Further contributions to improve web support are very welcome!**
 
 ## Development
 
