@@ -83,7 +83,6 @@ class PointerLockWeb extends PointerLockPlatform {
         .forTarget(document)
         .listen((event) {
       if (document.pointerLockElement == body) {
-        print('Detected document.pointerLockElement == body');
         hasLockedSuccessfully = true;
         lockCheckTimer?.cancel();
       }
