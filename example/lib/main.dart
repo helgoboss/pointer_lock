@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_lock/pointer_lock.dart';
 import 'package:pointer_lock_example/free_example.dart';
@@ -57,8 +56,7 @@ class _MyAppState extends State<MyApp> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 Tooltip(
-                  message:
-                      "Determines how to activate and deactivate locking.",
+                  message: "Determines how to activate and deactivate locking.",
                   child: Row(
                     spacing: 10,
                     children: [
@@ -94,14 +92,16 @@ class _MyAppState extends State<MyApp> {
                       value: _cursor == PointerLockCursor.hidden,
                       onChanged: (value) {
                         setState(() {
-                          _cursor = value ? PointerLockCursor.hidden : PointerLockCursor.normal;
+                          _cursor = value
+                              ? PointerLockCursor.hidden
+                              : PointerLockCursor.normal;
                         });
                       },
                     )
                   ],
                 ),
                 // Windows mode
-                if (Platform.isWindows)
+                if (defaultTargetPlatform == TargetPlatform.windows)
                   Tooltip(
                     message:
                         "Determines which technique is used on Windows to capture the pointer.",
@@ -141,14 +141,14 @@ class _MyAppState extends State<MyApp> {
                   elevation: 1,
                   child: switch (_mode) {
                     _Mode.drag => DragExample(
-                      cursor: _cursor,
-                      windowsMode: _windowsMode,
-                    ),
+                        cursor: _cursor,
+                        windowsMode: _windowsMode,
+                      ),
                     // TODO: Handle this case.
                     _Mode.free => FreeExample(
-                      cursor: _cursor,
-                      windowsMode: _windowsMode,
-                    ),
+                        cursor: _cursor,
+                        windowsMode: _windowsMode,
+                      ),
                   },
                 ),
               ),
