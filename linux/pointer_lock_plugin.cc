@@ -170,7 +170,10 @@ FlMethodResponse* set_pointer_locked(PointerLockPlugin* plugin, bool locked) {
     // GdkGrabStatus result = gdk_seat_grab(gdk_seat, gdk_window, GDK_SEAT_CAPABILITY_ALL_POINTING, TRUE, gdk_cursor, nullptr, nullptr, nullptr);
     auto gdk_event_mask = static_cast<GdkEventMask>(GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
     // Use deprecated gdk_pointer_grab in order to confine to a window.
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     GdkGrabStatus result = gdk_pointer_grab(gdk_window, TRUE, gdk_event_mask, gdk_window, gdk_cursor, GDK_CURRENT_TIME);
+    #pragma GCC diagnostic pop
     g_object_unref(gdk_cursor);
     if (result != GDK_GRAB_SUCCESS) {
       return error_response("gdk_seat_grab failed");
