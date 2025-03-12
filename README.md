@@ -5,7 +5,7 @@ and receive movement deltas while the pointer is locked.
 
 | Windows | macOS | Linux (x11) | Linux (Wayland) |        Web        |
 |:-------:|:-----:|:-----------:|-----------------|:-----------------:|
-|   ✔️    |  ✔️   |     ✔️      | ✔               | Experimental️ (*) |
+|   ✔️    |  ✔️   |     ✔️         | so so           | Experimental️ (*) |
 
 ## Installation
 
@@ -63,9 +63,10 @@ Use whatever works best for you!
 
 ### Linux
 
-On Linux, things work okay both in X11 and Wayland. The implementation is based on the GDK 
-functions `gdk_pointer_grab` and `gdk_device_warp`. On Wayland, it still works, probably thanks to the
-compatibility layer.
+On Linux, things work okay in X11. The implementation is based on the GDK 
+functions `gdk_pointer_grab` and `gdk_device_warp`.
+
+On Wayland, I had varying experiences. On my Ubuntu VM running via UTM on macOS, it works. On my Zorin OS distro which runs on bare metal, the pointer easily escapes. This appeared to work better with the X11 functions `XGrabCursor` and `XWarpCursor` (which were replaced with GDK functions in commit 942a4c39). But with the X11 functions, I observed crashes in advanced usage scenarios ... maybe it's time to use the "pointer-constraints-unstable-v1" API on Wayland?
 
 ### Web (*)
 
