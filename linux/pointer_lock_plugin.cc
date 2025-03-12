@@ -5,7 +5,7 @@
 #include <sys/utsname.h>
 
 #include <cstring>
-#include <gdk/gdkx.h>
+// #include <gdk/gdkx.h>
 
 #include "pointer_lock_plugin_private.h"
 
@@ -57,21 +57,15 @@ FlMethodResponse* no_pointer_error_response() {
   return error_response("No pointer");
 }
 
-GdkPoint get_pointer_pos_relative_to_window(GdkWindow* gdk_window) {
-  GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
-  Window x_window = GDK_WINDOW_XID(gdk_window);
-  Display* x_display = GDK_DISPLAY_XDISPLAY(gdk_display);
-  Window root_x_window = DefaultRootWindow(x_display);
-  Window child_x_window = root_x_window;
-  int root_x, root_y, win_x, win_y = 0;
-  unsigned int mask = 0;
-  Bool success = XQueryPointer(x_display, x_window, &root_x_window,
-                               &child_x_window,
-                               &root_x, &root_y, &win_x, &win_y, &mask);
-  if (!success) {
-    g_printerr("XQueryPointer failed\n");
+GdkPoint get_pointer_position_on_screen(GdkDisplay* gdk_display) {
+  GdkSeat* gdk_seat = gdk_display_get_default_seat(gdk_display);
+  GdkDevice* gdk_pointer = gdk_seat_get_pointer(gdk_seat);
+  if (!gdk_pointer) {
+    return {0, 0};
   }
-  return {win_x, win_y};
+  int x, y;
+  gdk_device_get_position(gdk_pointer, nullptr, &x, &y);
+  return {x, y};
 }
 
 // End reusable functions
@@ -114,14 +108,8 @@ FlMethodResponse* pointer_position_on_screen(const PointerLockPlugin* plugin) {
     return no_window_error_response();
   }
   GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
-  GdkSeat* gdk_seat = gdk_display_get_default_seat(gdk_display);
-  GdkDevice* gdk_pointer = gdk_seat_get_pointer(gdk_seat);
-  if (!gdk_pointer) {
-    return no_pointer_error_response();
-  }
-  int x, y;
-  gdk_device_get_position(gdk_pointer, nullptr, &x, &y);
-  return point_response(x, y);
+  GdkPoint pos = get_pointer_position_on_screen(gdk_display);
+  return point_response(pos.x, pos.y);
 }
 
 FlMethodResponse* last_pointer_delta(const PointerLockPlugin* plugin) {
@@ -129,13 +117,14 @@ FlMethodResponse* last_pointer_delta(const PointerLockPlugin* plugin) {
   if (!gdk_window) {
     return no_window_error_response();
   }
-  GdkPoint new_pointer_pos = get_pointer_pos_relative_to_window(gdk_window);
   GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
-  Display* x_display = GDK_DISPLAY_XDISPLAY(gdk_display);
-  Window x_window = GDK_WINDOW_XID(gdk_window);
+  GdkPoint new_pointer_pos = get_pointer_position_on_screen(gdk_display);
+  GdkScreen *gdk_screen = gdk_display_get_default_screen(gdk_display);
+  GdkSeat *gdk_seat = gdk_display_get_default_seat(gdk_display);
+  GdkDevice *gdk_pointer = gdk_seat_get_pointer(gdk_seat);
   int initial_x = plugin->initial_pointer_pos.x;
   int initial_y = plugin->initial_pointer_pos.y;
-  XWarpPointer(x_display, None, x_window, 0, 0, 0, 0, initial_x, initial_y);
+  gdk_device_warp(gdk_pointer, gdk_screen, initial_x, initial_y);
   return point_response(new_pointer_pos.x - initial_x,
                         new_pointer_pos.y - initial_y);
 }
@@ -149,47 +138,45 @@ FlMethodResponse* set_pointer_visible(PointerLockPlugin* plugin, bool visible) {
   if (visible) {
     gdk_window_set_cursor(gdk_window, nullptr);
   } else {
-    GdkDisplay* display = gdk_window_get_display(gdk_window);
-    GdkCursor* invisible_cursor = gdk_cursor_new_for_display(
-        display, GDK_BLANK_CURSOR);
-    gdk_window_set_cursor(gdk_window, invisible_cursor);
-    g_object_unref(invisible_cursor);
+    GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
+    GdkCursor* gdk_cursor = gdk_cursor_new_for_display(gdk_display, GDK_BLANK_CURSOR);
+    gdk_window_set_cursor(gdk_window, gdk_cursor);
+    g_object_unref(gdk_cursor);
   }
   return success_response();
 }
 
 FlMethodResponse* set_pointer_locked(PointerLockPlugin* plugin, bool locked) {
   GdkWindow* gdk_window = get_gdk_window(plugin->registrar);
-  GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
-  Display* x_display = GDK_DISPLAY_XDISPLAY(gdk_display);
   if (!gdk_window) {
     return no_window_error_response();
   }
+  GdkDisplay* gdk_display = gdk_window_get_display(gdk_window);
+  GdkSeat *gdk_seat = gdk_display_get_default_seat(gdk_display);
   if (locked) {
     // Memorize initial pointer position
-    plugin->initial_pointer_pos =
-        get_pointer_pos_relative_to_window(gdk_window);
+    plugin->initial_pointer_pos = get_pointer_position_on_screen(gdk_display);
     // Grab pointer
-    Window x_window = GDK_WINDOW_XID(gdk_window);
-    // Somehow, only the blank cursor works with XWarpPointer (which keeps the pointer at its place), at
-    // least when running on Wayland. No problem. Ignore the cursor hint. Just always hide the cursor.
+    gdk_seat_ungrab(gdk_seat);
+    // Always use blank cursor! Otherwise, the warping won't work (at least not on Wayland).
     GdkCursor* gdk_cursor = gdk_cursor_new_for_display(gdk_display, GDK_BLANK_CURSOR);
-    Cursor x_cursor = gdk_cursor ? gdk_x11_cursor_get_xcursor(gdk_cursor) : 0;
-    int eventMask =
-        PointerMotionMask | ButtonReleaseMask | ButtonPressMask |
-        EnterWindowMask | LeaveWindowMask;
-    XUngrabPointer(x_display, 0);
-    int result = XGrabPointer(x_display, x_window, TRUE, eventMask,
-                              GrabModeAsync, GrabModeAsync, x_window,
-                              x_cursor, 0);
-    if (gdk_cursor) {
-      g_object_unref(gdk_cursor);
-    }
-    if (result != GrabSuccess) {
-      return error_response("XGrabPointer failed");
+    // gdk_seat_grab is the replacement of the deprecated gdk_pointer_grab, but unfortunately it doesn't allow
+    // confining the cursor to the window. Very fast mouse movements will make the cursor end up outside the window,
+    // and then warping to the original position is not possible anymore (at least on Wayland). This could
+    // maybe be avoided by *synchronously* warping on pointer move events. At the moment we warp asynchronously:
+    // Mouse movement => Native code calls Dart code => Dart code requests last pointer delta => Native code warps.
+    // I don't know how to get synchronously informed of mouse events on the native side without hacking the
+    // Flutter Engine.
+    // GdkGrabStatus result = gdk_seat_grab(gdk_seat, gdk_window, GDK_SEAT_CAPABILITY_ALL_POINTING, TRUE, gdk_cursor, nullptr, nullptr, nullptr);
+    auto gdk_event_mask = static_cast<GdkEventMask>(GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK);
+    // Use deprecated gdk_pointer_grab in order to confine to a window.
+    GdkGrabStatus result = gdk_pointer_grab(gdk_window, TRUE, gdk_event_mask, gdk_window, gdk_cursor, GDK_CURRENT_TIME);
+    g_object_unref(gdk_cursor);
+    if (result != GDK_GRAB_SUCCESS) {
+      return error_response("gdk_seat_grab failed");
     }
   } else {
-    XUngrabPointer(x_display, 0);
+    gdk_seat_ungrab(gdk_seat);
   }
   return success_response();
 }

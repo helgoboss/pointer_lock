@@ -63,8 +63,8 @@ Use whatever works best for you!
 
 ### Linux
 
-On Linux, things work okay both in X11 and Wayland. The implementation is based on the X11 
-functions `XGrabCursor` and `XWarpCursor`. On Wayland, it still works, thanks to the
+On Linux, things work okay both in X11 and Wayland. The implementation is based on the GDK 
+functions `gdk_pointer_grab` and `gdk_device_warp`. On Wayland, it still works, probably thanks to the
 compatibility layer.
 
 ### Web (*)
@@ -87,8 +87,6 @@ Known issues:
 
 There's room for improvement for the Linux platform:
 
-- We could probably replace the X11 functions `XGrabCursor` and `XWarpCursor` with the 
-  GTK counterparts.
 - For Wayland, we could use the Wayland-specific "pointer-constraints-unstable-v1" API in order
   to allow for a smoother pointer locking experience. A few experiments have been done already
-  (see commit 9216f16aa188268e6 in which the experimental Wayland code was removed). However, the X11 implementation seems to work fine for now.
+  (see commit 9216f16aa188268e6 in which the experimental Wayland code was removed).
