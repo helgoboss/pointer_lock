@@ -1,11 +1,49 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:web/web.dart' as web;
 
 import '../../src/pointer_lock.dart';
 import '../../src/pointer_lock_platform_interface.dart';
+
+class _GlobalPointerHandlers {
+  final StreamController<web.PointerEvent> _pointerMoveController =
+      StreamController<web.PointerEvent>.broadcast();
+  final StreamController<web.PointerEvent> _pointerUpController =
+      StreamController<web.PointerEvent>.broadcast();
+
+  Stream<web.PointerEvent> get onPointerMove => _pointerMoveController.stream;
+  Stream<web.PointerEvent> get onPointerUp => _pointerUpController.stream;
+
+  /// Sets up global pointer event handlers to manage pointer movement after
+  /// lock.
+  ///
+  /// Firefox (and like Safari) require that move and up events are already
+  /// subscribed before pointer lock is requested, otherwise they won't be
+  /// delivered until a new pointer down event occurs. This class enables the
+  /// code below to attach a listener to an event stream from a subscription
+  /// that is already active when pointer lock is requested.
+  _GlobalPointerHandlers._() {
+    final document = web.document;
+
+    const web.EventStreamProvider<web.PointerEvent>('pointermove')
+        .forTarget(document.body)
+        .listen((event) {
+      _pointerMoveController.add(event);
+    });
+
+    const web.EventStreamProvider<web.PointerEvent>('pointerup')
+        .forTarget(document.body)
+        .listen((event) {
+      _pointerUpController.add(event);
+    });
+  }
+
+  static late final _GlobalPointerHandlers instance;
+  static void initialize() {
+    instance = _GlobalPointerHandlers._();
+  }
+}
 
 /// A web implementation of the PointerLockPlatform of the PointerLock plugin.
 class PointerLockWeb extends PointerLockPlatform {
@@ -14,9 +52,14 @@ class PointerLockWeb extends PointerLockPlatform {
     PointerLockPlatform.instance = PointerLockWeb();
   }
 
+  bool _isInitialized = false;
+
   @override
   Future<void> ensureInitialized() async {
-    // Not required on web
+    if (!_isInitialized) {
+      _isInitialized = true;
+      _GlobalPointerHandlers.initialize();
+    }
   }
 
   @override
@@ -25,6 +68,12 @@ class PointerLockWeb extends PointerLockPlatform {
     required PointerLockCursor cursor,
     required bool unlockOnPointerUp,
   }) {
+    if (!_isInitialized) {
+      throw Exception(
+          'PointerLockWeb: Not initialized. pointerLock.ensureInitialized()'
+          ' must be called in your main function before runApp().');
+    }
+
     final controller = StreamController<PointerLockMoveEvent>();
     final document = web.document;
     final body = document.body;
@@ -93,7 +142,7 @@ class PointerLockWeb extends PointerLockPlatform {
 
     // Handle mouse movement
     mouseMoveSubscription =
-        web.EventStreamProviders.mouseMoveEvent.forTarget(body).listen((event) {
+        _GlobalPointerHandlers.instance.onPointerMove.listen((event) {
       if (document.pointerLockElement == body) {
         final mouseEvent = event;
         controller.add(
@@ -110,7 +159,7 @@ class PointerLockWeb extends PointerLockPlatform {
     // Handle mouse up if unlockOnPointerUp is true
     if (unlockOnPointerUp) {
       mouseUpSubscription =
-          web.EventStreamProviders.mouseUpEvent.forTarget(body).listen((event) {
+          _GlobalPointerHandlers.instance.onPointerUp.listen((event) {
         if (document.pointerLockElement == body) {
           unlock();
         }
