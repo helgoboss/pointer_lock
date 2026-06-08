@@ -46,6 +46,18 @@ public class PointerLockPlugin: NSObject, FlutterPlugin {
 
 class PointerLockSessionStreamHandler: NSObject, FlutterStreamHandler {
   private var monitor: Any?
+
+  private static func emitMouseDelta(
+    deltaX: CGFloat,
+    deltaY: CGFloat,
+    events: @escaping FlutterEventSink
+  ) {
+    let list: [Double] = [Double(deltaX), Double(deltaY)];
+    list.withUnsafeBufferPointer { buffer in
+      let data = Data(buffer: buffer)
+      events(FlutterStandardTypedData(float64: data))
+    }
+  }
   
   public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
     CGAssociateMouseAndMouseCursorPosition(0)
@@ -56,16 +68,17 @@ class PointerLockSessionStreamHandler: NSObject, FlutterStreamHandler {
     monitor = NSEvent.addLocalMonitorForEvents(
       matching: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged, .leftMouseUp, .rightMouseUp, .otherMouseUp]
     ) { event in
-      if unlockOnPointerUp && [.leftMouseUp, .rightMouseUp, .otherMouseUp].contains(event.type) {
-        events(FlutterEndOfEventStream)
+      if [.leftMouseUp, .rightMouseUp, .otherMouseUp].contains(event.type) {
+        if unlockOnPointerUp {
+          events(FlutterEndOfEventStream)
+        }
         return event
       }
-      let (x, y) = CGGetLastMouseDelta()
-      let list: [Double] = [Double(x), Double(y)];
-      list.withUnsafeBufferPointer { buffer in
-        let data = Data(buffer: buffer)
-        events(FlutterStandardTypedData(float64: data))
-      }
+      PointerLockSessionStreamHandler.emitMouseDelta(
+        deltaX: event.deltaX,
+        deltaY: event.deltaY,
+        events: events
+      )
       return event
     }
     return nil
